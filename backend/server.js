@@ -12,6 +12,7 @@ const serviceRoutes = require('./routes/servicesRoutes');
 const medicineRoutes = require('./routes/medicinesRoutes');
 const billingRoutes = require('./routes/billingRoutes');
 const reportRoutes = require('./routes/reportsRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/medicines', medicineRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/auth', authRoutes);
 
 // Root route
 app.get('/', (req, res) => {
@@ -37,6 +39,7 @@ app.get('/', (req, res) => {
     message: 'Clinic Management System API',
     version: '1.0.0',
     endpoints: {
+      auth: '/api/auth',
       patients: '/api/patients',
       medicalRecords: '/api/medical-records',
       services: '/api/services',
