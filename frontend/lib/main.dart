@@ -16,8 +16,8 @@ import 'screens/medical_records/medical_record_list_screen.dart';
 import 'screens/medical_records/add_medical_record_screen.dart';
 import 'screens/billing/billing_list_screen.dart';
 import 'screens/reports/reports_screen.dart';
-import 'screens/services/service_list_screen.dart';
-import 'screens/medicines/medicine_list_screen.dart';
+import 'services/service_list_screen.dart';
+import 'services/medicine_list_screen.dart';
 import 'models/patient.dart';
 
 void main() async {
@@ -120,99 +120,6 @@ class MyApp extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
-              );
-          }
-        },
-      ),
-    );
-  }
-}
-
-class AuthWrapper extends StatefulWidget {
-  const AuthWrapper({super.key});
-
-  @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  @override
-  void initState() {
-    super.initState();
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, child) {
-        if (authProvider.isLoading) {
-          return Scaffold(
-            body: Container(
-              decoration: const BoxDecoration(
-                gradient: AppGradients.primaryGradient,
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.local_hospital, size: 80, color: Colors.white),
-                    SizedBox(height: 24),
-                    CircularProgressIndicator(color: Colors.white),
-                    SizedBox(height: 16),
-                    Text(
-                      'Đang tải...',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }
-
-        if (authProvider.isAuthenticated) {
-          return const DashboardScreen();
-        }
-
-        return const LoginScreen();
-      },
-    );
-  }
-}: (_) => const AddAppointmentScreen());
-            
-            // Medical Records
-            case '/medical-records':
-              final args = settings.arguments as Map<String, dynamic>?;
-              return MaterialPageRoute(
-                builder: (_) => MedicalRecordListScreen(
-                  patientId: args?['patientId'],
-                ),
-              );
-            case '/medical-records/add':
-              final patientId = settings.arguments as String?;
-              return MaterialPageRoute(
-                builder: (_) => AddMedicalRecordScreen(patientId: patientId),
-              );
-            
-            // Billing
-            case '/billing':
-              return MaterialPageRoute(builder: (_) => const BillingListScreen());
-            
-            // Reports
-            case '/reports':
-              return MaterialPageRoute(builder: (_) => const ReportsScreen());
-            
-            default:
-              return MaterialPageRoute(
-                builder: (_) => const Scaffold(
-                  body: Center(child: Text('404 - Page not found')),
                 ),
               );
           }

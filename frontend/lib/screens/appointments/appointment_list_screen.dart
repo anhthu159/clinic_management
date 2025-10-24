@@ -369,18 +369,4 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       ),
     );
   }
-
-  // ========== Các hàm phụ ==========
-
-  Widget _buildInfoRow(IconData icon, String label, String value) { ... }
-
-  Widget _buildStatusChip(String status) { ... }
-
-  Widget _buildEmptyState(String message) { ... }
-
-  void _showAppointmentDetails(Appointment appointment) { ... }
-
-  void _showAppointmentMenu(Appointment appointment) { ... }
-
-  void _confirmDelete(Appointment appointment) { ... }
 }
