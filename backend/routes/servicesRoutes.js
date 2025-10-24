@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const serviceController = require('../controllers/serviceController');
+const { protect } = require('../middleware/auth');
+router.use(protect);
 
 router.post('/', serviceController.createService);
 router.get('/', serviceController.getAllServices);

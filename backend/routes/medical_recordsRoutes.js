@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const medicalRecordController = require('../controllers/medical_recordController');
+const { protect } = require('../middleware/auth');
+router.use(protect);
 
 router.post('/', medicalRecordController.createMedicalRecord);
 router.get('/', medicalRecordController.getAllMedicalRecords);

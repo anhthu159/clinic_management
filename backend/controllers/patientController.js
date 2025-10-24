@@ -3,6 +3,25 @@ const Patient = require('../models/patient');
 // Tạo bệnh nhân mới (Tiếp nhận)
 exports.createPatient = async (req, res) => {
   try {
+    // Thêm validation
+    const { fullName, phone, dateOfBirth } = req.body;
+    
+    if (!fullName || !phone || !dateOfBirth) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Vui lòng nhập đầy đủ thông tin bắt buộc' 
+      });
+    }
+    
+    // Kiểm tra số điện thoại đã tồn tại
+    const existingPatient = await Patient.findOne({ phone });
+    if (existingPatient) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Số điện thoại đã tồn tại trong hệ thống' 
+      });
+    }
+    
     const patient = new Patient(req.body);
     await patient.save();
     res.status(201).json({ success: true, data: patient });

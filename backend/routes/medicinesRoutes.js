@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const medicineController = require('../controllers/medicineController');
+const { protect } = require('../middleware/auth');
+router.use(protect);
 
 router.post('/', medicineController.createMedicine);
 router.get('/', medicineController.getAllMedicines);
