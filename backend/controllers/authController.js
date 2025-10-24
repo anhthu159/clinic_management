@@ -40,16 +40,26 @@ exports.login = async (req, res) => {
     // Tạo token
     const token = signToken(user._id);
     
+    // Đảm bảo user có fullName
+    if (!user.fullName) {
+      user.fullName = user.username;
+      await user.save();
+    }
+    
+    // Lấy thông tin user (loại bỏ password)
+    const userWithoutPassword = {
+      id: user._id,
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive
+    };
+    
     res.json({
       success: true,
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role
-      }
+      user: userWithoutPassword
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -101,7 +111,26 @@ exports.register = async (req, res) => {
 exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-password');
-    res.json({ success: true, data: user });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thông tin người dùng'
+      });
+    }
+
+    const userData = {
+      id: user._id,
+      username: user.username,
+      fullName: user.fullName || user.username, // Fallback to username if fullName is empty
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive
+    };
+
+    res.json({ 
+      success: true, 
+      data: userData
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -136,6 +165,55 @@ exports.changePassword = async (req, res) => {
     res.json({ 
       success: true, 
       message: 'Đổi mật khẩu thành công' 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// Cập nhật thông tin profile
+exports.updateProfile = async (req, res) => {
+  try {
+    const { fullName, email, phone } = req.body;
+    
+    // Validate input
+    if (!fullName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Vui lòng nhập họ tên'
+      });
+    }
+
+    // Tìm và cập nhật user
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy thông tin người dùng'
+      });
+    }
+
+    // Cập nhật thông tin
+    user.fullName = fullName;
+    user.email = email || user.email;
+    user.phone = phone || user.phone;
+    await user.save();
+
+    // Trả về thông tin đã cập nhật
+    const userData = {
+      id: user._id,
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      isActive: user.isActive
+    };
+
+    res.json({
+      success: true,
+      message: 'Cập nhật thông tin thành công',
+      data: userData
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

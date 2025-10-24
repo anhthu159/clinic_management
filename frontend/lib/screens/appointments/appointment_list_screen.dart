@@ -20,7 +20,6 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
   List<Appointment> _allAppointments = [];
   List<Appointment> _todayAppointments = [];
   bool _isLoading = true;
-  DateTime _selectedDate = DateTime.now();
 
   @override
   void initState() {
@@ -367,6 +366,141 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
           ),
         ),
       ),
+    );
+  }
+  
+  // Hiển thị trạng thái rỗng
+  Widget _buildEmptyState(String message) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.event_busy, size: 64, color: AppTheme.grey),
+          const SizedBox(height: 16),
+          Text(
+            message,
+            style: const TextStyle(fontSize: 16, color: AppTheme.darkGrey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Hiển thị chip trạng thái lịch hẹn
+  Widget _buildStatusChip(String status) {
+    Color color;
+    switch (status) {
+      case 'Đã khám':
+        color = AppTheme.success;
+        break;
+      case 'Hủy':
+        color = AppTheme.error;
+        break;
+      default:
+        color = AppTheme.primaryGreen;
+    }
+    return Container(
+      margin: const EdgeInsets.only(left: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
+        ),
+      ),
+    );
+  }
+
+  // Hiển thị một dòng thông tin
+  Widget _buildInfoRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppTheme.primaryGreen),
+        const SizedBox(width: 6),
+        Text('$label: ', style: const TextStyle(fontWeight: FontWeight.w600)),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(fontSize: 14),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Hiển thị menu tuỳ chọn cho lịch hẹn
+  void _showAppointmentMenu(Appointment appointment) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit),
+                title: const Text('Sửa lịch hẹn'),
+                onTap: () {
+                  Navigator.pop(context);
+                  // Chuyển sang màn sửa lịch hẹn nếu có
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete),
+                title: const Text('Xóa lịch hẹn'),
+                onTap: () {
+                  Navigator.pop(context);
+                  if (appointment.id != null) {
+                    _deleteAppointment(appointment.id!);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Hiển thị chi tiết lịch hẹn
+  void _showAppointmentDetails(Appointment appointment) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        final dateFormat = DateFormat('dd/MM/yyyy');
+        return AlertDialog(
+          title: const Text('Chi tiết lịch hẹn'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildInfoRow(Icons.person, 'Bệnh nhân', appointment.patientInfo?.fullName ?? 'N/A'),
+              _buildInfoRow(Icons.phone, 'SĐT', appointment.patientInfo?.phone ?? ''),
+              _buildInfoRow(Icons.calendar_today, 'Ngày', dateFormat.format(appointment.appointmentDate)),
+              _buildInfoRow(Icons.access_time, 'Giờ', appointment.appointmentTime),
+              if (appointment.doctorName != null)
+                _buildInfoRow(Icons.person, 'Bác sĩ', appointment.doctorName!),
+              if (appointment.roomNumber != null)
+                _buildInfoRow(Icons.meeting_room, 'Phòng', appointment.roomNumber!),
+              if (appointment.reason != null)
+                _buildInfoRow(Icons.description, 'Lý do', appointment.reason!),
+              _buildStatusChip(appointment.status),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Đóng'),
+            ),
+          ],
+        );
+      },
     );
   }
 }

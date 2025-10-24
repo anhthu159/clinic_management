@@ -7,34 +7,41 @@ class AuthProvider with ChangeNotifier {
   final ApiService _api = ApiService();
   final StorageService _storage = StorageService();
 
-  bool _isLoading = false;
+  bool _isLoading = true;  // Start with loading state
   bool _isAuthenticated = false;
   Map<String, dynamic>? _currentUser;
   String? _errorMessage;
+  bool _initialized = false;
 
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _isAuthenticated;
   Map<String, dynamic>? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
+  bool get initialized => _initialized;
 
   // Check authentication status on app start
   Future<void> checkAuthStatus() async {
-    _isLoading = true;
-    notifyListeners();
+    if (_initialized) return; // Skip if already initialized
 
     try {
       final isLoggedIn = await _storage.isLoggedIn();
       if (isLoggedIn) {
         _currentUser = await _storage.getUser();
         _isAuthenticated = true;
+        // Lấy thông tin user mới nhất từ server
+        await getCurrentUser();
+      } else {
+        _isAuthenticated = false;
+        _currentUser = null;
       }
     } catch (e) {
       _isAuthenticated = false;
       _currentUser = null;
+    } finally {
+      _isLoading = false;
+      _initialized = true;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   // Login
@@ -181,6 +188,47 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  String? get userRole => _currentUser?['role'];
-  String? get userName => _currentUser?['fullName'];
+  // Update profile
+  Future<bool> updateProfile({
+    required String fullName,
+    String? email,
+    String? phone,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _api.put(
+        '/auth/profile',
+        {
+          'fullName': fullName,
+          if (email != null) 'email': email,
+          if (phone != null) 'phone': phone,
+        },
+      );
+
+      _isLoading = false;
+      if (response['success']) {
+        // Cập nhật thông tin user trong state và storage
+        _currentUser = response['data'];
+        await _storage.saveUser(_currentUser!);
+        notifyListeners();
+        return true;
+      } else {
+        _errorMessage = response['message'] ?? 'Cập nhật thông tin thất bại';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  String? get userRole => _currentUser?['role'] ?? 'User';
+  // Prefer showing the actual account username first (keeps display stable if fullName is a generic label)
+  String get userName => _currentUser?['username'] ?? _currentUser?['fullName'] ?? 'Người dùng';
 }

@@ -19,6 +19,7 @@ import 'screens/reports/reports_screen.dart';
 import 'services/service_list_screen.dart';
 import 'services/medicine_list_screen.dart';
 import 'models/patient.dart';
+import 'screens/profile/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -102,6 +103,10 @@ class MyApp extends StatelessWidget {
               return MaterialPageRoute(builder: (_) => const ServiceListScreen());
             case '/medicines':
               return MaterialPageRoute(builder: (_) => const MedicineListScreen());
+
+            // Profile
+            case '/profile':
+              return MaterialPageRoute(builder: (_) => const ProfileScreen());
             
             default:
               return MaterialPageRoute(
@@ -140,12 +145,10 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    _checkAuth();
-  }
-
-  Future<void> _checkAuth() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.checkAuthStatus();
+    // Đặt lịch để kiểm tra auth sau khi widget được build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<AuthProvider>(context, listen: false).checkAuthStatus();
+    });
   }
 
   @override

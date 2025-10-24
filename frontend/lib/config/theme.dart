@@ -163,6 +163,15 @@ class AppTheme {
         hintStyle: GoogleFonts.roboto(color: grey),
       ),
       
+      // List Tile Theme
+      listTileTheme: const ListTileThemeData(
+        tileColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      ),
+
       // Icon Theme
       iconTheme: const IconThemeData(
         color: primaryGreen,
