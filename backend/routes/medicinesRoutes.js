@@ -2,12 +2,14 @@ const express = require('express');
 const router = express.Router();
 const medicineController = require('../controllers/medicineController');
 const { protect } = require('../middleware/auth');
+const { canManageServices } = require('../middleware/roleCheck');
 router.use(protect);
 
-router.post('/', medicineController.createMedicine);
+router.post('/', canManageServices, medicineController.createMedicine);
+router.put('/:id', canManageServices, medicineController.updateMedicine);
+router.delete('/:id', canManageServices, medicineController.deleteMedicine);
+
 router.get('/', medicineController.getAllMedicines);
 router.get('/:id', medicineController.getMedicineById);
-router.put('/:id', medicineController.updateMedicine);
-router.delete('/:id', medicineController.deleteMedicine);
 
 module.exports = router;

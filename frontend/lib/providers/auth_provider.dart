@@ -231,4 +231,43 @@ class AuthProvider with ChangeNotifier {
   String? get userRole => _currentUser?['role'] ?? 'User';
   // Prefer showing the actual account username first (keeps display stable if fullName is a generic label)
   String get userName => _currentUser?['username'] ?? _currentUser?['fullName'] ?? 'Người dùng';
+
+  // Kiểm tra role
+  bool get isAdmin => userRole == 'admin';
+  bool get isDoctor => userRole == 'doctor';
+  bool get isReceptionist => userRole == 'receptionist';
+  bool get isAccountant => userRole == 'accountant';
+
+  // Quyền Bệnh nhân
+  bool get canCreatePatient => isAdmin || isReceptionist;
+  bool get canDeletePatient => isAdmin;
+
+  // Quyền Hồ sơ khám
+  bool get canCreateMedicalRecord => isAdmin || isDoctor;
+
+  // Quyền Thanh toán
+  bool get canManageBilling => isAdmin || isAccountant;
+
+  // Quyền Dịch vụ & Thuốc
+  bool get canManageServices => isAdmin;
+  bool get canManageMedicines => isAdmin;
+
+  // Quyền Báo cáo
+  bool get canViewReports => isAdmin || isDoctor || isAccountant;
+
+  // Tên role hiển thị
+  String get roleDisplayName {
+    switch (userRole) {
+      case 'admin':
+        return 'Quản trị viên';
+      case 'doctor':
+        return 'Bác sĩ';
+      case 'receptionist':
+        return 'Lễ tân';
+      case 'accountant':
+        return 'Kế toán';
+      default:
+        return 'Người dùng';
+    }
+  }
 }

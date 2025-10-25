@@ -4,6 +4,8 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/patient.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class AddAppointmentScreen extends StatefulWidget {
   const AddAppointmentScreen({super.key});

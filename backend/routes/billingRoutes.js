@@ -2,12 +2,16 @@ const express = require('express');
 const router = express.Router();
 const billingController = require('../controllers/billingController');
 const { protect } = require('../middleware/auth');
+const { canManageBilling } = require('../middleware/roleCheck');
 
 router.use(protect);
 
-router.post('/', billingController.createBilling);
+router.post('/', canManageBilling, billingController.createBilling);
+router.put('/:id/payment', canManageBilling, billingController.updatePaymentStatus);
+
+
 router.get('/', billingController.getAllBillings);
 router.get('/:id', billingController.getBillingById);
-router.put('/:id/payment', billingController.updatePaymentStatus);
+
 
 module.exports = router;
