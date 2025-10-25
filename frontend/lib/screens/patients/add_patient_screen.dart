@@ -320,13 +320,13 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
         setState(() => _patientType = type);
       },
       selectedColor: color,
-      backgroundColor: color.withOpacity(0.1),
+      backgroundColor: color.withValues(alpha: 26),
       labelStyle: TextStyle(
         color: isSelected ? Colors.white : color,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
       ),
       side: BorderSide(
-        color: isSelected ? color : color.withOpacity(0.3),
+        color: isSelected ? color : color.withValues(alpha: 77),
         width: isSelected ? 2 : 1,
       ),
     );

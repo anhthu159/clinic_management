@@ -372,7 +372,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
                         const SizedBox(height: 8),
                         LinearProgressIndicator(
                           value: count / totalVisits,
-                          backgroundColor: color.withOpacity(0.2),
+                          backgroundColor: color.withValues(alpha: 51),
                           valueColor: AlwaysStoppedAnimation<Color>(color),
                           minHeight: 8,
                           borderRadius: BorderRadius.circular(4),
@@ -487,7 +487,7 @@ class _ReportsScreenState extends State<ReportsScreen> with SingleTickerProvider
           Text(
             title,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 230),
               fontSize: 12,
             ),
             maxLines: 2,

@@ -233,9 +233,9 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withOpacity(0.1),
+                  color: AppTheme.accentGreen.withValues(alpha: 26),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.accentGreen.withOpacity(0.3)),
+                  border: Border.all(color: AppTheme.accentGreen.withValues(alpha: 77)),
                 ),
                 child: Row(
                   children: [
@@ -402,9 +402,9 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.secondaryBlue.withOpacity(0.1),
+                color: AppTheme.secondaryBlue.withValues(alpha: 26),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.secondaryBlue.withOpacity(0.3)),
+                border: Border.all(color: AppTheme.secondaryBlue.withValues(alpha: 77)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -494,12 +494,12 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
   }
 
   Widget _buildServicesList() {
-    if (_selectedServices.isEmpty) {
+      if (_selectedServices.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(16),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: AppTheme.grey.withOpacity(0.1),
+          color: AppTheme.grey.withValues(alpha: 26),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Center(
@@ -542,7 +542,7 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
         padding: const EdgeInsets.all(16),
         margin: const EdgeInsets.only(bottom: 8),
         decoration: BoxDecoration(
-          color: AppTheme.grey.withOpacity(0.1),
+          color: AppTheme.grey.withValues(alpha: 26),
           borderRadius: BorderRadius.circular(8),
         ),
         child: const Center(

@@ -191,7 +191,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppTheme.accentGreen.withOpacity(0.2),
+                      color: AppTheme.accentGreen.withValues(alpha: 51),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -403,7 +403,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
       margin: const EdgeInsets.only(left: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 38),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

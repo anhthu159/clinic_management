@@ -157,9 +157,9 @@ class _PatientListScreenState extends State<PatientListScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 26),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 77)),
       ),
       child: Text(
         type,
@@ -355,14 +355,14 @@ class _PatientListScreenState extends State<PatientListScreen> {
           Icon(
             Icons.people_outline,
             size: 80,
-            color: AppTheme.grey.withOpacity(0.5),
+            color: AppTheme.grey.withValues(alpha: 128),
           ),
           const SizedBox(height: 16),
           Text(
             'Không có bệnh nhân nào',
             style: TextStyle(
               fontSize: 18,
-              color: AppTheme.grey.withOpacity(0.7),
+              color: AppTheme.grey.withValues(alpha: 179),
             ),
           ),
           const SizedBox(height: 8),
@@ -370,7 +370,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
             'Nhấn nút + để thêm bệnh nhân mới',
             style: TextStyle(
               fontSize: 14,
-              color: AppTheme.grey.withOpacity(0.5),
+              color: AppTheme.grey.withValues(alpha: 128),
             ),
           ),
         ],

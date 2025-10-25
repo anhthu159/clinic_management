@@ -402,8 +402,8 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: service.isActive 
-                        ? AppTheme.primaryGreen.withOpacity(0.1)
-                        : AppTheme.grey.withOpacity(0.1),
+                        ? AppTheme.primaryGreen.withValues(alpha: 26)
+                        : AppTheme.grey.withValues(alpha: 26),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -511,13 +511,13 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: isActive 
-            ? AppTheme.success.withOpacity(0.1)
-            : AppTheme.grey.withOpacity(0.1),
+            ? AppTheme.success.withValues(alpha: 26)
+            : AppTheme.grey.withValues(alpha: 26),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isActive 
-              ? AppTheme.success.withOpacity(0.3)
-              : AppTheme.grey.withOpacity(0.3),
+              ? AppTheme.success.withValues(alpha: 77)
+              : AppTheme.grey.withValues(alpha: 77),
         ),
       ),
       child: Row(
@@ -550,14 +550,14 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           Icon(
             Icons.medical_services_outlined,
             size: 80,
-            color: AppTheme.grey.withOpacity(0.5),
+            color: AppTheme.grey.withValues(alpha: 128),
           ),
           const SizedBox(height: 16),
           Text(
             'Chưa có dịch vụ nào',
             style: TextStyle(
               fontSize: 18,
-              color: AppTheme.grey.withOpacity(0.7),
+              color: AppTheme.grey.withValues(alpha: 179),
             ),
           ),
         ],

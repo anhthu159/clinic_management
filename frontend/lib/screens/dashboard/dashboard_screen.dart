@@ -114,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Colors.white.withOpacity(0.2),
+                              color: Colors.grey.withValues(alpha: 128),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -140,7 +140,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 Text(
                                   'Chào mừng bạn trở lại',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.9),
+                                    color: Colors.white.withValues(alpha: 230),
                                     fontSize: 14,
                                   ),
                                 ),
@@ -297,7 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Text(
                 title,
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 230),
                   fontSize: 12,
                 ),
               ),
@@ -327,7 +327,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppTheme.primaryGreen.withOpacity(0.1),
+                  color: AppTheme.primaryGreen.withValues(alpha: 26),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: AppTheme.primaryGreen, size: 28),
@@ -366,7 +366,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  authProvider.userName ?? 'User',
+                  authProvider.userName,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -376,7 +376,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 Text(
                   authProvider.userRole ?? '',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 230),
                     fontSize: 14,
                   ),
                 ),
@@ -498,10 +498,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           ElevatedButton(
             onPressed: () async {
-              Navigator.pop(context);
+              final navigator = Navigator.of(context);
+              navigator.pop();
               await Provider.of<AuthProvider>(context, listen: false).logout();
               if (mounted) {
-                Navigator.of(context).pushReplacementNamed('/login');
+                navigator.pushReplacementNamed('/login');
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),

@@ -4,8 +4,7 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/patient.dart';
-import 'package:provider/provider.dart';
-import '../../providers/auth_provider.dart';
+
 
 class AddAppointmentScreen extends StatefulWidget {
   const AddAppointmentScreen({super.key});
@@ -49,9 +48,11 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   }
 
   Future<void> _loadPatients() async {
+    if (!mounted) return;
     setState(() => _loadingPatients = true);
     try {
       final response = await _api.get(AppConfig.patientsEndpoint);
+      if (!mounted) return;
       if (response['success']) {
         setState(() {
           _patients = (response['data'] as List)
@@ -61,11 +62,16 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() => _loadingPatients = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi tải danh sách bệnh nhân: $e')),
+      );
     }
   }
 
   Future<void> _selectDate() async {
+    if (!mounted) return;
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _appointmentDate,
@@ -82,12 +88,13 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         );
       },
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() => _appointmentDate = picked);
     }
   }
 
   Future<void> _selectTime() async {
+    if (!mounted) return;
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _appointmentTime,
@@ -102,12 +109,13 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         );
       },
     );
-    if (picked != null) {
+    if (picked != null && mounted) {
       setState(() => _appointmentTime = picked);
     }
   }
 
   Future<void> _saveAppointment() async {
+    if (!mounted) return;
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedPatient == null) {
@@ -207,10 +215,10 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.accentGreen.withOpacity(0.1),
+                  color: Colors.black.withValues(alpha: 26),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: AppTheme.accentGreen.withOpacity(0.3),
+                    color: AppTheme.accentGreen.withValues(alpha: 77),
                   ),
                 ),
                 child: Row(
@@ -452,7 +460,7 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppTheme.accentGreen.withOpacity(0.2),
+                            color: AppTheme.accentGreen.withValues(alpha: 51),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(

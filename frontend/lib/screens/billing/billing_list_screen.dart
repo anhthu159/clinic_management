@@ -135,7 +135,7 @@ class _BillingListScreenState extends State<BillingListScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 51),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Icon(
@@ -262,8 +262,8 @@ class _BillingListScreenState extends State<BillingListScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: billing.isPaid 
-                          ? AppTheme.success.withOpacity(0.1)
-                          : AppTheme.warning.withOpacity(0.1),
+                          ? AppTheme.success.withValues(alpha: 26)
+                          : AppTheme.warning.withValues(alpha: 26),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Icon(
@@ -371,7 +371,7 @@ class _BillingListScreenState extends State<BillingListScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withOpacity(0.1),
+                        color: AppTheme.primaryGreen.withValues(alpha: 26),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -392,7 +392,7 @@ class _BillingListScreenState extends State<BillingListScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.secondaryBlue.withOpacity(0.1),
+                        color: AppTheme.secondaryBlue.withValues(alpha: 26),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -452,9 +452,9 @@ class _BillingListScreenState extends State<BillingListScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 26),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 77)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -482,14 +482,14 @@ class _BillingListScreenState extends State<BillingListScreen> {
           Icon(
             Icons.receipt_long_outlined,
             size: 80,
-            color: AppTheme.grey.withOpacity(0.5),
+            color: AppTheme.grey.withValues(alpha: 128),
           ),
           const SizedBox(height: 16),
           Text(
             'Chưa có hóa đơn nào',
             style: TextStyle(
               fontSize: 18,
-              color: AppTheme.grey.withOpacity(0.7),
+              color: AppTheme.grey.withValues(alpha: 179),
             ),
           ),
         ],

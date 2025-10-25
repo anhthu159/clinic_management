@@ -267,7 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withOpacity(0.1),
+                          color: AppTheme.primaryGreen.withValues(alpha: 26),
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Text(
@@ -347,7 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withOpacity(0.1),
+              color: AppTheme.primaryGreen.withValues(alpha: 26),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: AppTheme.primaryGreen),
@@ -393,7 +393,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppTheme.primaryGreen.withOpacity(0.1),
+            color: AppTheme.primaryGreen.withValues(alpha: 26),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, color: AppTheme.primaryGreen),
