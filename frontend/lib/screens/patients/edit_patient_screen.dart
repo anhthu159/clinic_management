@@ -161,7 +161,7 @@ class _EditPatientScreenState extends State<EditPatientScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      value: _gender,
+                      initialValue: _gender,
                       items: ['Nam', 'Nữ']
                           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                           .toList(),
@@ -176,7 +176,7 @@ class _EditPatientScreenState extends State<EditPatientScreen> {
                     const SizedBox(height: 16),
 
                     DropdownButtonFormField<String>(
-                      value: _type,
+                      initialValue: _type,
                       items: ['Thường', 'BHYT', 'VIP']
                           .map((e) => DropdownMenuItem(value: e, child: Text(e)))
                           .toList(),

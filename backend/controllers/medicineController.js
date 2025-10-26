@@ -1,8 +1,13 @@
 const Medicine = require('../models/medicine');
+const { validationResult } = require('express-validator');
 
 // Tạo thuốc mới
 exports.createMedicine = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     const medicine = new Medicine(req.body);
     await medicine.save();
     res.status(201).json({ success: true, data: medicine });
@@ -44,6 +49,10 @@ exports.getMedicineById = async (req, res) => {
 // Cập nhật thuốc
 exports.updateMedicine = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     const medicine = await Medicine.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!medicine) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy thuốc' });

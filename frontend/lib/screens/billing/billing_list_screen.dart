@@ -3,10 +3,16 @@ import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
+import 'package:provider/provider.dart';
+import '../../widgets/app_badge.dart';
+import '../../providers/auth_provider.dart';
 import '../../models/billing.dart';
 
 class BillingListScreen extends StatefulWidget {
-  const BillingListScreen({super.key});
+  final String? startDateIso;
+  final String? endDateIso;
+
+  const BillingListScreen({super.key, this.startDateIso, this.endDateIso});
 
   @override
   State<BillingListScreen> createState() => _BillingListScreenState();
@@ -27,7 +33,11 @@ class _BillingListScreenState extends State<BillingListScreen> {
   Future<void> _loadBillings() async {
     setState(() => _isLoading = true);
     try {
-      final response = await _api.get(AppConfig.billingEndpoint);
+      String url = AppConfig.billingEndpoint;
+      if (widget.startDateIso != null && widget.endDateIso != null) {
+        url = '$url?startDate=${widget.startDateIso}&endDate=${widget.endDateIso}';
+      }
+      final response = await _api.get(url);
       if (response['success']) {
         setState(() {
           _billings = (response['data'] as List)
@@ -39,9 +49,11 @@ class _BillingListScreenState extends State<BillingListScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
+          );
+        });
       }
     }
   }
@@ -91,10 +103,13 @@ class _BillingListScreenState extends State<BillingListScreen> {
       appBar: AppBar(
         title: const Text('Quản lý thanh toán'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadBillings,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: auth.isActive ? _loadBillings : null,
+              tooltip: auth.isActive ? 'Làm mới' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: Column(
@@ -106,7 +121,7 @@ class _BillingListScreenState extends State<BillingListScreen> {
             decoration: BoxDecoration(
               gradient: AppGradients.primaryGradient,
               borderRadius: BorderRadius.circular(12),
-              boxShadow: AppShadows.cardShadow,
+              boxShadow: AppShadows.cardShadowLight,
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -138,10 +153,11 @@ class _BillingListScreenState extends State<BillingListScreen> {
                     color: Colors.white.withValues(alpha: 51),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(
-                    Icons.payments,
-                    color: Colors.white,
-                    size: 40,
+                  child: AppBadge(
+                    radius: 20,
+                    backgroundColor: AppTheme.primaryGreen,
+                    icon: Icons.payments,
+                    showRing: false,
                   ),
                 ),
               ],
@@ -159,7 +175,6 @@ class _BillingListScreenState extends State<BillingListScreen> {
                   _buildFilterChip('Tất cả'),
                   _buildFilterChip('Chưa thanh toán'),
                   _buildFilterChip('Đã thanh toán'),
-                  _buildFilterChip('Thanh toán một phần'),
                 ],
               ),
             ),
@@ -258,20 +273,32 @@ class _BillingListScreenState extends State<BillingListScreen> {
               // Header
               Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: billing.isPaid 
-                          ? AppTheme.success.withValues(alpha: 26)
-                          : AppTheme.warning.withValues(alpha: 26),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(
-                      Icons.receipt_long,
-                      color: billing.isPaid ? AppTheme.success : AppTheme.warning,
-                      size: 24,
-                    ),
-                  ),
+                  // Show a clear avatar/initials so the colored box is not empty-looking
+                  Builder(builder: (_) {
+                    final fullName = billing.patientInfo?.fullName ?? '';
+                    return Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: (billing.isPaid ? AppTheme.success : AppTheme.warning).withValues(alpha: 20),
+                        ),
+                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: const Offset(0, 3))],
+                      ),
+                      child: CircleAvatar(
+                        radius: 22,
+                        backgroundColor: billing.isPaid ? AppTheme.success : AppTheme.warning,
+                        child: fullName.isNotEmpty
+                            ? Text(
+                                _initialsFromName(fullName),
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              )
+                            : const Icon(
+                                Icons.person,
+                                color: Colors.white,
+                              ),
+                      ),
+                    );
+                  }),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -295,7 +322,11 @@ class _BillingListScreenState extends State<BillingListScreen> {
                       ],
                     ),
                   ),
-                  _buildStatusChip(billing.paymentStatus),
+                  _buildStatusChip(
+                    (billing.paymentStatus.trim().isEmpty)
+                        ? (billing.isPaid ? 'Đã thanh toán' : 'Chưa thanh toán')
+                        : billing.paymentStatus,
+                  ),
                 ],
               ),
               const SizedBox(height: 12),
@@ -365,42 +396,66 @@ class _BillingListScreenState extends State<BillingListScreen> {
               Row(
                 children: [
                   if (billing.serviceCharges.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withValues(alpha: 26),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${billing.serviceCharges.length} dịch vụ',
-                        style: const TextStyle(
-                          fontSize: 11,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 88, minHeight: 28),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
                           color: AppTheme.primaryGreen,
-                          fontWeight: FontWeight.w600,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.primaryGreen.withValues(alpha: 20),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${billing.serviceCharges.length} dịch vụ',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                   ],
                   if (billing.medicineCharges.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.secondaryBlue.withValues(alpha: 26),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${billing.medicineCharges.length} thuốc',
-                        style: const TextStyle(
-                          fontSize: 11,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 88, minHeight: 28),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
                           color: AppTheme.secondaryBlue,
-                          fontWeight: FontWeight.w600,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.secondaryBlue.withValues(alpha: 20),
+                              blurRadius: 4,
+                              offset: const Offset(0, 1),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          '${billing.medicineCharges.length} thuốc',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ),
@@ -410,19 +465,22 @@ class _BillingListScreenState extends State<BillingListScreen> {
               // Action Buttons
               if (billing.isUnpaid) ...[
                 const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      _showPaymentDialog(billing);
-                    },
-                    icon: const Icon(Icons.payment, size: 18),
-                    label: const Text('Thanh toán'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.success,
+                Consumer<AuthProvider>(builder: (context, auth, _) {
+                  if (!auth.canManageBilling) return const SizedBox.shrink();
+                  return SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        _showPaymentDialog(billing);
+                      },
+                      icon: const Icon(Icons.payment, size: 18),
+                      label: const Text('Thanh toán'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.success,
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                }),
               ],
             ],
           ),
@@ -432,44 +490,54 @@ class _BillingListScreenState extends State<BillingListScreen> {
   }
 
   Widget _buildStatusChip(String status) {
+    // Normalize and provide a safe fallback so the chip never appears empty.
+    final label = (status.trim().isEmpty) ? 'Chưa thanh toán' : status.trim();
+
     Color color;
     IconData icon;
-    
-    switch (status) {
+    switch (label) {
       case 'Đã thanh toán':
         color = AppTheme.success;
         icon = Icons.check_circle;
         break;
-      case 'Thanh toán một phần':
+      case 'Chưa thanh toán':
         color = AppTheme.warning;
-        icon = Icons.schedule;
+        icon = Icons.pending;
         break;
       default:
         color = AppTheme.error;
-        icon = Icons.pending;
+        icon = Icons.cancel;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 26),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 77)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            status,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 92),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color, // solid background so the label is always readable
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(color: color.withValues(alpha: 31), blurRadius: 4, offset: const Offset(0, 1)),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: Colors.white),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -528,7 +596,7 @@ class _BillingListScreenState extends State<BillingListScreen> {
                   const Text('Phương thức thanh toán:'),
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
-                    value: paymentMethod,
+                    initialValue: paymentMethod,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(
@@ -576,5 +644,14 @@ class _BillingListScreenState extends State<BillingListScreen> {
   String _formatCurrency(double value) {
     final amount = value.toInt();
     return '${amount.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}đ';
+  }
+
+  String _initialsFromName(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty) return '';
+    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
+    final first = parts.first.substring(0, 1).toUpperCase();
+    final last = parts.last.substring(0, 1).toUpperCase();
+    return '$first$last';
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
+import '../../widgets/app_badge.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,23 +27,26 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+      // Capture messenger and navigator before awaiting to avoid
+      // use_build_context_synchronously issues.
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
       final success = await authProvider.login(
         _usernameController.text.trim(),
         _passwordController.text,
       );
 
-      if (mounted) {
-        if (success) {
-          Navigator.of(context).pushReplacementNamed('/dashboard');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.errorMessage ?? 'Đăng nhập thất bại'),
-              backgroundColor: AppTheme.error,
-            ),
-          );
-        }
+      if (!mounted) return;
+      if (success) {
+        navigator.pushReplacementNamed('/dashboard');
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage ?? 'Đăng nhập thất bại'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
       }
     }
   }
@@ -72,22 +76,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Logo & Title
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withValues(alpha: 26),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.local_hospital,
-                            size: 60,
-                            color: AppTheme.primaryGreen,
-                          ),
+                        AppBadge(
+                          radius: 44,
+                          backgroundColor: Colors.white,
+                          icon: Icons.local_hospital,
+                          iconColor: AppTheme.primaryGreen,
+                          showRing: true,
                         ),
                         const SizedBox(height: 24),
                         Text(
                           'Quản lý Phòng khám',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: AppTheme.primaryGreen,
                             fontWeight: FontWeight.bold,
                           ),

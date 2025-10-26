@@ -4,6 +4,8 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/patient.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class PatientListScreen extends StatefulWidget {
   const PatientListScreen({super.key});
@@ -49,9 +51,11 @@ class _PatientListScreenState extends State<PatientListScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
+          );
+        });
       }
     }
   }
@@ -189,13 +193,15 @@ class _PatientListScreenState extends State<PatientListScreen> {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              // Avatar
+              // Avatar — white circular badge with subtle ring for a cleaner look
               Container(
                 width: 60,
                 height: 60,
                 decoration: BoxDecoration(
-                  gradient: AppGradients.primaryGradient,
-                  borderRadius: BorderRadius.circular(30),
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 15)),
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: const Offset(0, 3))],
                 ),
                 child: Center(
                   child: Text(
@@ -203,7 +209,7 @@ class _PatientListScreenState extends State<PatientListScreen> {
                         ? patient.fullName[0].toUpperCase()
                         : '?',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppTheme.primaryGreen,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
@@ -286,60 +292,70 @@ class _PatientListScreenState extends State<PatientListScreen> {
                 ),
               ),
 
-              PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    Navigator.pushNamed(
-                      context,
-                      '/patients/edit',
-                      arguments: patient,
-                    ).then((result) {
-                      if (result == true) _loadPatients();
-                    });
-                  } else if (value == 'delete') {
-                    _confirmDelete(patient);
-                  } else if (value == 'medical') {
-                    Navigator.pushNamed(
-                      context,
-                      '/medical-records',
-                      arguments: {'patientId': patient.id},
-                    );
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: 'medical',
-                    child: Row(
-                      children: [
-                        Icon(Icons.assignment, color: AppTheme.primaryGreen),
-                        SizedBox(width: 8),
-                        Text('Xem hồ sơ khám'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'edit',
-                    child: Row(
-                      children: [
-                        Icon(Icons.edit, color: AppTheme.secondaryBlue),
-                        SizedBox(width: 8),
-                        Text('Chỉnh sửa'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, color: AppTheme.error),
-                        SizedBox(width: 8),
-                        Text('Xóa'),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+              Consumer<AuthProvider>(builder: (context, auth, _) {
+                final canEdit = auth.canCreatePatient;
+                final canDelete = auth.canDeletePatient;
+                return PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      Navigator.pushNamed(
+                        context,
+                        '/patients/edit',
+                        arguments: patient,
+                      ).then((result) {
+                        if (result == true) _loadPatients();
+                      });
+                    } else if (value == 'delete') {
+                      _confirmDelete(patient);
+                    } else if (value == 'medical') {
+                      Navigator.pushNamed(
+                        context,
+                        '/medical-records',
+                        arguments: {'patientId': patient.id},
+                      );
+                    }
+                  },
+                  itemBuilder: (context) {
+                    final items = <PopupMenuEntry<String>>[];
+                    items.add(const PopupMenuItem(
+                      value: 'medical',
+                      child: Row(
+                        children: [
+                          Icon(Icons.assignment, color: AppTheme.primaryGreen),
+                          SizedBox(width: 8),
+                          Text('Xem hồ sơ khám'),
+                        ],
+                      ),
+                    ));
+                    if (canEdit) {
+                      items.add(const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit, color: AppTheme.secondaryBlue),
+                            SizedBox(width: 8),
+                            Text('Chỉnh sửa'),
+                          ],
+                        ),
+                      ));
+                    }
+                    if (canDelete) {
+                      items.add(const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete, color: AppTheme.error),
+                            SizedBox(width: 8),
+                            Text('Xóa'),
+                          ],
+                        ),
+                      ));
+                    }
+                    return items;
+                  },
+                );
+              }),
             ],
           ),
         ),
@@ -366,13 +382,18 @@ class _PatientListScreenState extends State<PatientListScreen> {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Nhấn nút + để thêm bệnh nhân mới',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.grey.withValues(alpha: 128),
-            ),
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            if (auth.canCreatePatient) {
+              return Text(
+                'Nhấn nút + để thêm bệnh nhân mới',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: AppTheme.grey.withValues(alpha: 128),
+                ),
+              );
+            }
+            return const SizedBox.shrink();
+          }),
         ],
       ),
     );
@@ -384,10 +405,13 @@ class _PatientListScreenState extends State<PatientListScreen> {
       appBar: AppBar(
         title: const Text('Quản lý bệnh nhân'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadPatients,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: auth.isActive ? _loadPatients : null,
+              tooltip: auth.isActive ? 'Làm mới' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: Column(
@@ -406,9 +430,12 @@ class _PatientListScreenState extends State<PatientListScreen> {
                     prefixIcon: const Icon(Icons.search),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear),
-                            onPressed: () => _searchController.clear(),
-                          )
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  _searchController.clear();
+                                  FocusScope.of(context).unfocus();
+                                },
+                              )
                         : null,
                   ),
                 ),
@@ -465,14 +492,18 @@ class _PatientListScreenState extends State<PatientListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.pushNamed(context, '/patients/add');
-          if (result == true) _loadPatients();
-        },
-        icon: const Icon(Icons.person_add),
-        label: const Text('Thêm bệnh nhân'),
-      ),
+        floatingActionButton: Consumer<AuthProvider>(builder: (context, auth, _) {
+        if (!auth.canCreatePatient) return const SizedBox.shrink();
+        return FloatingActionButton.extended(
+          onPressed: () async {
+            FocusScope.of(context).unfocus();
+            final result = await Navigator.pushNamed(context, '/patients/add');
+            if (result == true) _loadPatients();
+          },
+          icon: const Icon(Icons.person_add),
+          label: const Text('Thêm bệnh nhân'),
+        );
+      }),
     );
   }
 }

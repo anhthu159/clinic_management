@@ -4,6 +4,8 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/medical_record.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class MedicalRecordListScreen extends StatefulWidget {
   final String? patientId;
@@ -45,9 +47,11 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
+          );
+        });
       }
     }
   }
@@ -65,10 +69,13 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
             ? 'Lịch sử khám bệnh' 
             : 'Hồ sơ khám bệnh'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadRecords,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: auth.isActive ? _loadRecords : null,
+              tooltip: auth.isActive ? 'Làm mới' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: Column(
@@ -126,20 +133,23 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.pushNamed(
-            context,
-            '/medical-records/add',
-            arguments: widget.patientId,
-          );
-          if (result == true) {
-            _loadRecords();
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Tạo hồ sơ'),
-      ),
+      floatingActionButton: Consumer<AuthProvider>(builder: (context, auth, _) {
+        if (!auth.canCreateMedicalRecord) return const SizedBox.shrink();
+        return FloatingActionButton.extended(
+          onPressed: () async {
+            final result = await Navigator.pushNamed(
+              context,
+              '/medical-records/add',
+              arguments: widget.patientId,
+            );
+            if (result == true) {
+              _loadRecords();
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Tạo hồ sơ'),
+        );
+      }),
     );
   }
 
@@ -188,15 +198,18 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
               // Header
               Row(
                 children: [
+                  // White circular badge with subtle ring to replace heavy gradient box
                   Container(
-                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      gradient: AppGradients.primaryGradient,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.assignment,
+                      shape: BoxShape.circle,
                       color: Colors.white,
+                      border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 15)),
+                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: const Offset(0, 3))],
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.assignment,
+                      color: AppTheme.primaryGreen,
                       size: 24,
                     ),
                   ),
@@ -216,9 +229,9 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
                         Text(
                           dateFormat.format(record.visitDate),
                           style: const TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.grey,
-                          ),
+                              fontSize: 14,
+                              color: AppTheme.textSecondary,
+                            ),
                         ),
                       ],
                     ),
@@ -241,17 +254,17 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Triệu chứng',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.grey,
-                          ),
-                        ),
+                              'Triệu chứng',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
                         Text(
                           record.symptoms,
                           style: const TextStyle(
                             fontSize: 14,
-                            color: AppTheme.black,
+                            color: AppTheme.textPrimary,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -278,14 +291,14 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
                             'Chẩn đoán',
                             style: TextStyle(
                               fontSize: 12,
-                              color: AppTheme.grey,
+                              color: AppTheme.textSecondary,
                             ),
                           ),
-                          Text(
+                            Text(
                             record.diagnosis!,
                             style: const TextStyle(
                               fontSize: 14,
-                              color: AppTheme.black,
+                              color: AppTheme.textPrimary,
                               fontWeight: FontWeight.w500,
                             ),
                             maxLines: 2,
@@ -303,22 +316,22 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
               // Doctor and Room
               Row(
                 children: [
-                  if (record.doctorName != null) ...[
-                    const Icon(Icons.person, size: 16, color: AppTheme.grey),
-                    const SizedBox(width: 4),
+                  if (record.doctorName != null) ...[ 
+                    const Icon(Icons.person, size: 16, color: AppTheme.primaryGreen),
+                    const SizedBox(width: 6),
                     Text(
                       record.doctorName!,
-                      style: const TextStyle(fontSize: 13, color: AppTheme.darkGrey),
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
                     ),
                   ],
                   if (record.doctorName != null && record.roomNumber != null)
                     const SizedBox(width: 16),
-                  if (record.roomNumber != null) ...[
-                    const Icon(Icons.meeting_room, size: 16, color: AppTheme.grey),
-                    const SizedBox(width: 4),
+                  if (record.roomNumber != null) ...[ 
+                    const Icon(Icons.meeting_room, size: 16, color: AppTheme.darkGrey),
+                    const SizedBox(width: 6),
                     Text(
                       'Phòng ${record.roomNumber}',
-                      style: const TextStyle(fontSize: 13, color: AppTheme.darkGrey),
+                      style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary),
                     ),
                   ],
                 ],
@@ -339,7 +352,7 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
                         'Chi phí',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.grey,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -360,7 +373,7 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.accentOrange.withValues(alpha: 26),
+                              color: AppTheme.accentOrange.withValues(alpha: 26),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -382,14 +395,14 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
                         ],
                       ),
                     ),
-                  Column(
+                      Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       const Text(
                         'Tổng cộng',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppTheme.grey,
+                          color: AppTheme.textSecondary,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -411,42 +424,78 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
               Row(
                 children: [
                   if (record.services.isNotEmpty) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryGreen.withValues(alpha: 26),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${record.services.length} dịch vụ',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.primaryGreen,
-                          fontWeight: FontWeight.w600,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 72, minHeight: 28),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: AppTheme.primaryGreen,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                '${record.services.length} dịch vụ',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.darkGrey,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
                   ],
                   if (record.prescriptions.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppTheme.secondaryBlue.withValues(alpha: 26),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${record.prescriptions.length} thuốc',
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: AppTheme.secondaryBlue,
-                          fontWeight: FontWeight.w600,
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(minWidth: 72, minHeight: 28),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 12,
+                              height: 12,
+                              decoration: BoxDecoration(
+                                color: AppTheme.secondaryBlue,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                '${record.prescriptions.length} thuốc',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AppTheme.darkGrey,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -462,7 +511,7 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
   Widget _buildStatusChip(String status) {
     Color color;
     IconData icon;
-    
+
     switch (status) {
       case 'Hoàn thành':
         color = AppTheme.success;
@@ -477,27 +526,34 @@ class _MedicalRecordListScreenState extends State<MedicalRecordListScreen> {
         icon = Icons.access_time;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 26),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 77)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            status,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+    // Ensure label is visible: give a minimum width and use contrastText for readable text color
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 88),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 26),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withValues(alpha: 77)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: color.contrastText),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                status,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color.contrastText,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

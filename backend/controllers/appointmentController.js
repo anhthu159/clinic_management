@@ -4,6 +4,11 @@ const Patient = require('../models/patient');
 // Tạo lịch hẹn mới
 exports.createAppointment = async (req, res) => {
   try {
+    const { validationResult } = require('express-validator');
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     const patient = await Patient.findById(req.body.patientId);
     if (!patient) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy bệnh nhân' });

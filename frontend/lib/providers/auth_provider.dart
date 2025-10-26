@@ -103,20 +103,26 @@ class AuthProvider with ChangeNotifier {
           'password': password,
           'fullName': fullName,
           'email': email,
-          'role': role,
         },
         needsAuth: false,
       );
-
       if (response['success']) {
-        await _storage.saveToken(response['token']);
-        await _storage.saveUser(response['user']);
-        
-        _currentUser = response['user'];
-        _isAuthenticated = true;
+        // If backend returned a token (account active), log in automatically.
+        if (response['token'] != null) {
+          await _storage.saveToken(response['token']);
+          await _storage.saveUser(response['user']);
+          _currentUser = response['user'];
+          _isAuthenticated = true;
+          _isLoading = false;
+          notifyListeners();
+          return true;
+        }
+
+        // Account created but requires admin activation.
+        _errorMessage = response['message'] ?? 'Tài khoản đã tạo, chờ quản trị viên kích hoạt.';
         _isLoading = false;
         notifyListeners();
-        return true;
+        return false;
       } else {
         _errorMessage = response['message'] ?? 'Đăng ký thất bại';
         _isLoading = false;
@@ -149,9 +155,16 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
+      // If fetching current user fails (e.g., token expired or account inactive),
+      // clear local auth state to prevent an unauthenticated/inactive user from
+      // staying in the app UI where they could see or edit resources.
       debugPrint('Error getting current user: $e');
+      await logout();
     }
   }
+
+  /// Whether the currently-authenticated user's account is active.
+  bool get isActive => (_currentUser?['isActive'] ?? false) == true;
 
   // Change password
   Future<bool> changePassword({
@@ -239,21 +252,26 @@ class AuthProvider with ChangeNotifier {
   bool get isAccountant => userRole == 'accountant';
 
   // Quyền Bệnh nhân
-  bool get canCreatePatient => isAdmin || isReceptionist;
-  bool get canDeletePatient => isAdmin;
+  bool get canCreatePatient => (isAdmin || isReceptionist) && isActive;
+  bool get canDeletePatient => isAdmin && isActive;
 
   // Quyền Hồ sơ khám
-  bool get canCreateMedicalRecord => isAdmin || isDoctor;
+  bool get canCreateMedicalRecord => (isAdmin || isDoctor) && isActive;
+
+  // Quyền Lịch hẹn
+  bool get canCreateAppointment => (isAdmin || isReceptionist) && isActive;
+  bool get canEditAppointment => (isAdmin || isReceptionist) && isActive;
+  bool get canCancelAppointment => (isAdmin || isReceptionist || isDoctor) && isActive;
 
   // Quyền Thanh toán
-  bool get canManageBilling => isAdmin || isAccountant;
+  bool get canManageBilling => (isAdmin || isAccountant) && isActive;
 
   // Quyền Dịch vụ & Thuốc
-  bool get canManageServices => isAdmin;
-  bool get canManageMedicines => isAdmin;
+  bool get canManageServices => isAdmin && isActive;
+  bool get canManageMedicines => isAdmin && isActive;
 
   // Quyền Báo cáo
-  bool get canViewReports => isAdmin || isDoctor || isAccountant;
+  bool get canViewReports => (isAdmin || isDoctor || isAccountant) && isActive;
 
   // Tên role hiển thị
   String get roleDisplayName {

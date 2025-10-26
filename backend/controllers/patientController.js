@@ -1,17 +1,15 @@
 const Patient = require('../models/patient');
+const { validationResult } = require('express-validator');
 
 // Tạo bệnh nhân mới (Tiếp nhận)
 exports.createPatient = async (req, res) => {
   try {
-    // Thêm validation
-    const { fullName, phone, dateOfBirth } = req.body;
-    
-    if (!fullName || !phone || !dateOfBirth) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Vui lòng nhập đầy đủ thông tin bắt buộc' 
-      });
+    // Check validation results from express-validator
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
     }
+    const { fullName, phone, dateOfBirth } = req.body;
     
     // Kiểm tra số điện thoại đã tồn tại
     const existingPatient = await Patient.findOne({ phone });

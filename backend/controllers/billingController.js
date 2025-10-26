@@ -1,9 +1,14 @@
 const Billing = require('../models/billing');
 const MedicalRecord = require('../models/medical_record');
+const { validationResult } = require('express-validator');
 
 // Tạo hóa đơn từ hồ sơ khám bệnh
 exports.createBilling = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     const medicalRecord = await MedicalRecord.findById(req.body.medicalRecordId);
     if (!medicalRecord) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy hồ sơ khám bệnh' });
@@ -90,6 +95,11 @@ exports.getBillingById = async (req, res) => {
 // Cập nhật trạng thái thanh toán
 exports.updatePaymentStatus = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
     const { paymentStatus, paymentMethod, paidDate } = req.body;
     
     const billing = await Billing.findByIdAndUpdate(

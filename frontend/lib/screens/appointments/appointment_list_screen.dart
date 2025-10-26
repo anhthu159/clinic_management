@@ -4,6 +4,8 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/appointment.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class AppointmentListScreen extends StatefulWidget {
   const AppointmentListScreen({super.key});
@@ -55,9 +57,11 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
+          );
+        });
       }
     }
   }
@@ -107,6 +111,48 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
     }
   }
 
+  void _confirmDeleteAppointment(Appointment appointment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận xóa'),
+        content: const Text('Bạn có chắc chắn muốn xóa lịch hẹn này?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (appointment.id != null) _deleteAppointment(appointment.id!);
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmCancelAppointment(Appointment appointment) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Xác nhận hủy'),
+        content: const Text('Bạn có chắc chắn muốn hủy lịch hẹn này?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              if (appointment.id != null) _updateAppointmentStatus(appointment.id!, 'Hủy');
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.error),
+            child: const Text('Hủy lịch hẹn'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -121,10 +167,13 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadAppointments,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: auth.isActive ? _loadAppointments : null,
+              tooltip: auth.isActive ? 'Làm mới' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: _isLoading
@@ -136,17 +185,19 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                 _buildAllTab(),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result =
-              await Navigator.pushNamed(context, '/appointments/add');
-          if (result == true) {
-            _loadAppointments();
-          }
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Đặt lịch hẹn'),
-      ),
+      floatingActionButton: Consumer<AuthProvider>(builder: (context, auth, _) {
+        if (!auth.canCreateAppointment) return const SizedBox.shrink();
+        return FloatingActionButton.extended(
+          onPressed: () async {
+            final result = await Navigator.pushNamed(context, '/appointments/add');
+            if (result == true) {
+              _loadAppointments();
+            }
+          },
+          icon: const Icon(Icons.add),
+          label: const Text('Đặt lịch hẹn'),
+        );
+      }),
     );
   }
 
@@ -206,7 +257,7 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                 ],
               ),
             ),
-            ...appointments.map((apt) => _buildAppointmentCard(apt)).toList(),
+            ...appointments.map((apt) => _buildAppointmentCard(apt)),
           ],
         );
       },
@@ -335,31 +386,45 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   if (appointment.status == 'Chờ khám') ...[
-                    TextButton.icon(
-                      onPressed: () => _updateAppointmentStatus(
-                          appointment.id!, 'Đã khám'),
-                      icon: const Icon(Icons.check_circle, size: 18),
-                      label: const Text('Đã khám'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.success,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton.icon(
-                      onPressed: () => _updateAppointmentStatus(
-                          appointment.id!, 'Hủy'),
-                      icon: const Icon(Icons.cancel, size: 18),
-                      label: const Text('Hủy'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppTheme.error,
-                      ),
-                    ),
+                    Consumer<AuthProvider>(builder: (context, auth, _) {
+                      final List<Widget> actions = [];
+                      // Only doctors and admins (and only if account is active) can mark as visited
+                      if ((auth.isDoctor || auth.isAdmin) && auth.isActive) {
+                        actions.add(TextButton.icon(
+                          onPressed: () => _updateAppointmentStatus(appointment.id!, 'Đã khám'),
+                          icon: const Icon(Icons.check_circle, size: 18),
+                          label: const Text('Đã khám'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.success,
+                          ),
+                        ));
+                        actions.add(const SizedBox(width: 8));
+                      }
+                      // Allow cancel if user has cancel permission
+                      if (auth.canCancelAppointment) {
+                        actions.add(TextButton.icon(
+                          onPressed: () => _confirmCancelAppointment(appointment),
+                          icon: const Icon(Icons.cancel, size: 18),
+                          label: const Text('Hủy'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.error,
+                          ),
+                        ));
+                      }
+
+                      return Row(children: actions);
+                    }),
                   ],
                   const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert),
-                    onPressed: () => _showAppointmentMenu(appointment),
-                  ),
+                  Consumer<AuthProvider>(builder: (context, auth, _) {
+                    if (!auth.canEditAppointment && !auth.canCancelAppointment && !( (auth.isDoctor || auth.isAdmin) && auth.isActive)) {
+                      return const SizedBox.shrink();
+                    }
+                    return IconButton(
+                      icon: const Icon(Icons.more_vert),
+                      onPressed: () => _showAppointmentMenu(appointment),
+                    );
+                  }),
                 ],
               ),
             ],
@@ -443,24 +508,30 @@ class _AppointmentListScreenState extends State<AppointmentListScreen>
         return SafeArea(
           child: Wrap(
             children: [
-              ListTile(
-                leading: const Icon(Icons.edit),
-                title: const Text('Sửa lịch hẹn'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Chuyển sang màn sửa lịch hẹn nếu có
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete),
-                title: const Text('Xóa lịch hẹn'),
-                onTap: () {
-                  Navigator.pop(context);
-                  if (appointment.id != null) {
-                    _deleteAppointment(appointment.id!);
-                  }
-                },
-              ),
+              Consumer<AuthProvider>(builder: (context, auth, _) {
+                final items = <Widget>[];
+                if (auth.canEditAppointment) {
+                  items.add(ListTile(
+                    leading: const Icon(Icons.edit),
+                    title: const Text('Sửa lịch hẹn'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      // Chuyển sang màn sửa lịch hẹn nếu có
+                    },
+                  ));
+                }
+                if (auth.canCancelAppointment) {
+                  items.add(ListTile(
+                    leading: const Icon(Icons.delete),
+                    title: const Text('Xóa lịch hẹn'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _confirmDeleteAppointment(appointment);
+                    },
+                  ));
+                }
+                return Column(children: items);
+              }),
             ],
           ),
         );

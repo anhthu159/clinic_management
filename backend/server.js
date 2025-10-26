@@ -2,6 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const morgan = require('morgan');
+const helmet = require('helmet');
 const connectDB = require('./config/database');
 const errorHandler = require('./middleware/errorHandler');
 
@@ -22,7 +24,16 @@ const app = express();
 connectDB();
 
 // Middleware
-app.use(cors());
+// Security headers
+app.use(helmet());
+
+// Logging
+app.use(morgan('combined'));
+
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://10.0.2.2:5000'], // Chỉ cho phép origins cụ thể
+  credentials: true
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 

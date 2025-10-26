@@ -1,8 +1,13 @@
 const Service = require('../models/service');
+const { validationResult } = require('express-validator');
 
 // Tạo dịch vụ mới
 exports.createService = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     const service = new Service(req.body);
     await service.save();
     res.status(201).json({ success: true, data: service });
@@ -44,6 +49,10 @@ exports.getServiceById = async (req, res) => {
 // Cập nhật dịch vụ
 exports.updateService = async (req, res) => {
   try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     const service = await Service.findByIdAndUpdate(req.params.id, req.body, { new: true });
     if (!service) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy dịch vụ' });

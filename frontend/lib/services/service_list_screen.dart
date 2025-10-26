@@ -3,6 +3,8 @@ import 'api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/service.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
 
 class ServiceListScreen extends StatefulWidget {
   const ServiceListScreen({super.key});
@@ -48,9 +50,11 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
+          );
+        });
       }
     }
   }
@@ -135,11 +139,16 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
             ElevatedButton(
               onPressed: () async {
                 if (nameController.text.isEmpty || priceController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
+                  final messenger = ScaffoldMessenger.of(context);
+                  messenger.showSnackBar(
                     const SnackBar(content: Text('Vui lòng điền đầy đủ thông tin')),
                   );
                   return;
                 }
+
+                // Capture navigator and messenger before async gap
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
 
                 try {
                   final data = {
@@ -153,22 +162,20 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   };
 
                   await _api.post(AppConfig.servicesEndpoint, data);
-                  Navigator.pop(context);
+                  navigator.pop();
                   _loadServices();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Thêm dịch vụ thành công'),
-                        backgroundColor: AppTheme.success,
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Thêm dịch vụ thành công'),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Lỗi: $e')),
+                  );
                 }
               },
               child: const Text('Thêm'),
@@ -247,6 +254,10 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
             ),
             ElevatedButton(
               onPressed: () async {
+                // Capture navigator and messenger before async gap
+                final messenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+
                 try {
                   final data = {
                     'serviceName': nameController.text.trim(),
@@ -259,22 +270,20 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
                   };
 
                   await _api.put('${AppConfig.servicesEndpoint}/${service.id}', data);
-                  Navigator.pop(context);
+                  navigator.pop();
                   _loadServices();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Cập nhật thành công'),
-                        backgroundColor: AppTheme.success,
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('Cập nhật thành công'),
+                      backgroundColor: AppTheme.success,
+                    ),
+                  );
                 } catch (e) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi: $e')),
-                    );
-                  }
+                  if (!mounted) return;
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Lỗi: $e')),
+                  );
                 }
               },
               child: const Text('Lưu'),
@@ -290,18 +299,22 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
       await _api.delete('${AppConfig.servicesEndpoint}/$id');
       _loadServices();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã xóa dịch vụ'),
-            backgroundColor: AppTheme.success,
-          ),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Đã xóa dịch vụ'),
+              backgroundColor: AppTheme.success,
+            ),
+          );
+        });
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi: $e')),
+          );
+        });
       }
     }
   }
@@ -322,10 +335,13 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
             },
             tooltip: _showInactive ? 'Ẩn dịch vụ ngưng hoạt động' : 'Hiện tất cả',
           ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadServices,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: auth.isActive ? _loadServices : null,
+              tooltip: auth.isActive ? 'Làm mới' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: Column(
@@ -380,11 +396,14 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Thêm dịch vụ'),
-      ),
+      floatingActionButton: Consumer<AuthProvider>(builder: (context, auth, _) {
+        if (!auth.canManageServices) return const SizedBox.shrink();
+        return FloatingActionButton.extended(
+          onPressed: _showAddDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Thêm dịch vụ'),
+        );
+      }),
     );
   }
 
@@ -398,14 +417,17 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
           children: [
             Row(
               children: [
+                // Circular white badge with subtle ring and colored icon for clarity
                 Container(
-                  padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: service.isActive 
-                        ? AppTheme.primaryGreen.withValues(alpha: 26)
-                        : AppTheme.grey.withValues(alpha: 26),
-                    borderRadius: BorderRadius.circular(8),
+                    shape: BoxShape.circle,
+                    color: Colors.white,
+                    border: Border.all(
+                      color: service.isActive ? AppTheme.primaryGreen.withValues(alpha: 15) : AppTheme.grey.withValues(alpha: 15),
+                    ),
+                    boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: const Offset(0, 3))],
                   ),
+                  padding: const EdgeInsets.all(8),
                   child: Icon(
                     Icons.medical_services,
                     color: service.isActive ? AppTheme.primaryGreen : AppTheme.grey,
@@ -478,28 +500,33 @@ class _ServiceListScreenState extends State<ServiceListScreen> {
               ),
             ],
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showEditDialog(service),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Sửa'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.secondaryBlue,
+            Consumer<AuthProvider>(builder: (context, auth, _) {
+              if (!auth.canManageServices) {
+                return const SizedBox.shrink();
+              }
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _showEditDialog(service),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Sửa'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.secondaryBlue,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => _confirmDelete(service),
-                  icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('Xóa'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.error,
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _confirmDelete(service),
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: const Text('Xóa'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.error,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            }),
           ],
         ),
       ),

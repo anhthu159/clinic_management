@@ -69,8 +69,9 @@ exports.login = async (req, res) => {
 //Đăng kí
 exports.register = async (req, res) => {
   try {
-    const { username, password, fullName, email, role } = req.body;
+    const { username, password, fullName, email } = req.body;
 
+    // Basic required fields
     if (!username || !password) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập username và password' });
     }
@@ -80,27 +81,44 @@ exports.register = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username đã tồn tại' });
     }
 
+    // SECURITY: Force new users to be receptionists.
+    // Auto-activation can be controlled via environment variable AUTO_ACTIVATE_USERS.
+    // If AUTO_ACTIVATE_USERS === 'true' then new users become active immediately.
+    const autoActivate = process.env.AUTO_ACTIVATE_USERS === 'true';
     const user = await User.create({
       username,
-      password,          // sẽ được hash bởi pre('save') trong model
+      password, // will be hashed by pre('save') in model
       fullName: fullName || '',
       email: email || '',
-      role: role || 'receptionist',
-      isActive: true
+      role: 'receptionist', // force role for public registrations
+      isActive: autoActivate,
     });
 
-    const token = signToken(user._id);
+    // Prepare user payload
+    const userPayload = {
+      id: user._id,
+      username: user.username,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+    };
 
+    // Only issue a token if the account is active. Otherwise require admin approval.
+    if (user.isActive) {
+      const token = signToken(user._id);
+      return res.status(201).json({
+        success: true,
+        token,
+        user: userPayload,
+      });
+    }
+
+    // Account created but not active
     res.status(201).json({
       success: true,
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role
-      }
+      message: 'Tài khoản đã tạo thành công. Vui lòng chờ quản trị viên kích hoạt.',
+      user: userPayload,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
@@ -7,6 +8,10 @@ import '../../models/patient.dart';
 import '../../models/service.dart';
 import '../../models/medicine.dart';
 import '../../models/medical_record.dart';
+import '../../models/user.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../widgets/app_badge.dart';
 
 class AddMedicalRecordScreen extends StatefulWidget {
   final String? patientId;
@@ -25,7 +30,10 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
   // Form Controllers
   final _symptomsController = TextEditingController();
   final _diagnosisController = TextEditingController();
-  final _doctorNameController = TextEditingController();
+  // doctor selection
+  List<User> _doctors = [];
+  bool _loadingDoctors = false;
+  User? _selectedDoctor;
   final _roomNumberController = TextEditingController();
   final _notesController = TextEditingController();
   final _discountController = TextEditingController(text: '0');
@@ -37,8 +45,8 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
   List<Service> _availableServices = [];
   List<Medicine> _availableMedicines = [];
   
-  List<ServiceItem> _selectedServices = [];
-  List<PrescriptionItem> _selectedPrescriptions = [];
+  final List<ServiceItem> _selectedServices = [];
+  final List<PrescriptionItem> _selectedPrescriptions = [];
 
   @override
   void initState() {
@@ -50,7 +58,7 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
   void dispose() {
     _symptomsController.dispose();
     _diagnosisController.dispose();
-    _doctorNameController.dispose();
+    // removed free-text doctor controller
     _roomNumberController.dispose();
     _notesController.dispose();
     _discountController.dispose();
@@ -82,6 +90,15 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
             .where((s) => s.isActive)
             .toList();
       }
+      // Load doctors (users with role doctor)
+      _loadingDoctors = true;
+      final usersResponse = await _api.get(AppConfig.usersEndpoint);
+      if (usersResponse['success']) {
+        _doctors = (usersResponse['data'] as List)
+            .map((json) => User.fromJson(json))
+            .where((u) => (u.role.toLowerCase() == 'doctor' || u.role.toLowerCase() == 'bác sĩ' || u.role.toLowerCase() == 'bac si') && u.isActive)
+            .toList();
+      }
 
       // Load medicines
       final medicinesResponse = await _api.get(AppConfig.medicinesEndpoint);
@@ -91,7 +108,8 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
             .toList();
       }
 
-      setState(() {});
+  _loadingDoctors = false;
+  setState(() {});
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -154,8 +172,8 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
         'symptoms': _symptomsController.text.trim(),
         if (_diagnosisController.text.isNotEmpty)
           'diagnosis': _diagnosisController.text.trim(),
-        if (_doctorNameController.text.isNotEmpty)
-          'doctorName': _doctorNameController.text.trim(),
+        if (_selectedDoctor != null)
+          'doctorName': _selectedDoctor!.fullName,
         if (_roomNumberController.text.isNotEmpty)
           'roomNumber': _roomNumberController.text.trim(),
         'services': _selectedServices.map((s) => s.toJson()).toList(),
@@ -312,13 +330,22 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
             Row(
               children: [
                 Expanded(
-                  child: TextFormField(
-                    controller: _doctorNameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Bác sĩ',
-                      prefixIcon: Icon(Icons.person),
-                    ),
-                  ),
+                  child: _loadingDoctors
+                      ? const Center(child: CircularProgressIndicator())
+            : DropdownButtonFormField<User>(
+              initialValue: _selectedDoctor,
+                          decoration: const InputDecoration(
+                            labelText: 'Bác sĩ',
+                            prefixIcon: Icon(Icons.person),
+                          ),
+                          items: _doctors.map((doctor) {
+                            return DropdownMenuItem<User>(
+                              value: doctor,
+                              child: Text(doctor.fullName),
+                            );
+                          }).toList(),
+                          onChanged: (v) => setState(() => _selectedDoctor = v),
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -338,28 +365,32 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
             const SizedBox(height: 8),
             _buildServicesList(),
             
-            ElevatedButton.icon(
-              onPressed: _showAddServiceDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Thêm dịch vụ'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryGreen,
-              ),
-            ),
+            Consumer<AuthProvider>(builder: (context, auth, _) {
+              return ElevatedButton.icon(
+                onPressed: auth.isActive ? _showAddServiceDialog : null,
+                icon: const Icon(Icons.add),
+                label: const Text('Thêm dịch vụ'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryGreen,
+                ),
+              );
+            }),
 
             const SizedBox(height: 24),
             _buildSectionTitle('Đơn thuốc'),
             const SizedBox(height: 8),
             _buildPrescriptionsList(),
             
-            ElevatedButton.icon(
-              onPressed: _showAddMedicineDialog,
-              icon: const Icon(Icons.add),
-              label: const Text('Thêm thuốc'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.secondaryBlue,
-              ),
-            ),
+            Consumer<AuthProvider>(builder: (context, auth, _) {
+              return ElevatedButton.icon(
+                onPressed: auth.isActive ? _showAddMedicineDialog : null,
+                icon: const Icon(Icons.add),
+                label: const Text('Thêm thuốc'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.secondaryBlue,
+                ),
+              );
+            }),
 
             const SizedBox(height: 24),
             _buildSectionTitle('Chi phí'),
@@ -384,18 +415,6 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
                   _buildCostRow('Tạm tính', _subtotal, isBold: true),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _discountController,
-              decoration: const InputDecoration(
-                labelText: 'Giảm giá',
-                prefixIcon: Icon(Icons.discount),
-                suffixText: 'đ',
-              ),
-              keyboardType: TextInputType.number,
-              onChanged: (value) => setState(() {}),
             ),
             const SizedBox(height: 16),
 
@@ -443,25 +462,27 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
             const SizedBox(height: 32),
 
             // Save Button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveMedicalRecord,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+            Consumer<AuthProvider>(builder: (context, auth, _) {
+              return SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: (!auth.isActive || _isLoading) ? null : _saveMedicalRecord,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Lưu hồ sơ',
+                          style: TextStyle(fontSize: 16),
                         ),
-                      )
-                    : const Text(
-                        'Lưu hồ sơ',
-                        style: TextStyle(fontSize: 16),
-                      ),
-              ),
-            ),
+                ),
+              );
+            }),
             const SizedBox(height: 16),
           ],
         ),
@@ -516,20 +537,27 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: const CircleAvatar(
+            leading: AppBadge(
+              radius: 20,
               backgroundColor: AppTheme.primaryGreen,
-              child: Icon(Icons.medical_services, color: Colors.white, size: 20),
+              icon: Icons.medical_services,
+              iconColor: Colors.white,
+              showRing: false,
             ),
             title: Text(service.serviceName),
             subtitle: Text(_formatCurrency(service.price)),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: AppTheme.error),
-              onPressed: () {
-                setState(() {
-                  _selectedServices.remove(service);
-                });
-              },
-            ),
+            trailing: Consumer<AuthProvider>(builder: (context, auth, _) {
+              return IconButton(
+                icon: const Icon(Icons.delete, color: AppTheme.error),
+                onPressed: auth.isActive
+                    ? () {
+                        setState(() {
+                          _selectedServices.remove(service);
+                        });
+                      }
+                    : null,
+              );
+            }),
           ),
         );
       }).toList(),
@@ -559,9 +587,12 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
-            leading: const CircleAvatar(
+            leading: AppBadge(
+              radius: 20,
               backgroundColor: AppTheme.secondaryBlue,
-              child: Icon(Icons.medication, color: Colors.white, size: 20),
+              icon: Icons.medication,
+              iconColor: Colors.white,
+              showRing: false,
             ),
             title: Text(prescription.medicineName),
             subtitle: Text(
@@ -578,14 +609,18 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                IconButton(
-                  icon: const Icon(Icons.delete, color: AppTheme.error),
-                  onPressed: () {
-                    setState(() {
-                      _selectedPrescriptions.remove(prescription);
-                    });
-                  },
-                ),
+                Consumer<AuthProvider>(builder: (context, auth, _) {
+                  return IconButton(
+                    icon: const Icon(Icons.delete, color: AppTheme.error),
+                    onPressed: auth.isActive
+                        ? () {
+                            setState(() {
+                              _selectedPrescriptions.remove(prescription);
+                            });
+                          }
+                        : null,
+                  );
+                }),
               ],
             ),
           ),
@@ -658,8 +693,10 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
                     itemBuilder: (context, index) {
                       final patient = _patients[index];
                       return ListTile(
-                        leading: CircleAvatar(
+                        leading: AppBadge(
+                          radius: 20,
                           backgroundColor: AppTheme.primaryGreen,
+                          showRing: false,
                           child: Text(
                             patient.fullName[0].toUpperCase(),
                             style: const TextStyle(color: Colors.white),
@@ -751,7 +788,7 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     DropdownButtonFormField<Medicine>(
-                      value: selectedMedicine,
+                      initialValue: selectedMedicine,
                       decoration: const InputDecoration(
                         labelText: 'Chọn thuốc',
                         prefixIcon: Icon(Icons.medication),
@@ -763,7 +800,11 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
                         );
                       }).toList(),
                       onChanged: (value) {
-                        setState(() => selectedMedicine = value);
+                        // reset quantity to 1 when medicine changes
+                        setState(() {
+                          selectedMedicine = value;
+                          quantityController.text = '1';
+                        });
                       },
                     ),
                     if (selectedMedicine != null) ...[
@@ -782,13 +823,76 @@ class _AddMedicalRecordScreenState extends State<AddMedicalRecordScreen> {
                       ),
                     ],
                     const SizedBox(height: 16),
-                    TextFormField(
-                      controller: quantityController,
+                    // Quantity selector with - / + buttons
+                    InputDecorator(
                       decoration: const InputDecoration(
                         labelText: 'Số lượng',
-                        prefixIcon: Icon(Icons.numbers),
                       ),
-                      keyboardType: TextInputType.number,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              final q = int.tryParse(quantityController.text) ?? 1;
+                              if (q > 1) {
+                                quantityController.text = (q - 1).toString();
+                                setState(() {});
+                              }
+                            },
+                            icon: const Icon(Icons.remove_circle_outline),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 80,
+                            child: TextFormField(
+                              controller: quantityController,
+                              textAlign: TextAlign.center,
+                              keyboardType: TextInputType.number,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isDense: true,
+                                contentPadding: EdgeInsets.symmetric(vertical: 8),
+                              ),
+                              onChanged: (val) {
+                                // clamp value between 1 and stockQuantity
+                                final parsed = int.tryParse(val) ?? 1;
+                                final maxQ = selectedMedicine?.stockQuantity ?? 999999;
+                                var clamped = parsed;
+                                if (parsed < 1) clamped = 1;
+                                if (parsed > maxQ) clamped = maxQ;
+                                if (clamped.toString() != val) {
+                                  // update text with clamped value without moving cursor to end awkwardly
+                                  quantityController.text = clamped.toString();
+                                  quantityController.selection = TextSelection.collapsed(offset: quantityController.text.length);
+                                }
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () {
+                              final q = int.tryParse(quantityController.text) ?? 1;
+                              final maxQ = selectedMedicine?.stockQuantity ?? 999999;
+                              if (q < maxQ) {
+                                quantityController.text = (q + 1).toString();
+                                setState(() {});
+                              } else {
+                                // show snackbar to indicate max reached
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Không thể vượt quá tồn kho ($maxQ)')),
+                                );
+                              }
+                            },
+                            icon: const Icon(Icons.add_circle_outline),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 16),
                     TextFormField(

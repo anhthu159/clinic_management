@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/api_service.dart';
-import '../../config/theme.dart';
 import '../../config/app_config.dart';
 
 class AddPatientScreen extends StatefulWidget {
@@ -16,16 +15,19 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
   final ApiService _api = ApiService();
   bool _isLoading = false;
 
-  // Form Controllers
   final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _idCardController = TextEditingController();
   final _emailController = TextEditingController();
-  
+
   DateTime? _dateOfBirth;
   String _gender = 'Nam';
   String _patientType = 'Thường';
+
+  static const Color primaryGreen = Color(0xFF1B5E20);
+  static const Color accentGreen = Color(0xFF4CAF50);
+  static const Color bg = Color(0xFFF6F8F7);
 
   @override
   void dispose() {
@@ -38,40 +40,33 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
   }
 
   Future<void> _selectDate() async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       initialDate: DateTime(2000),
       firstDate: DateTime(1900),
       lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppTheme.primaryGreen,
-            ),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: const ColorScheme.light(primary: primaryGreen),
+        ),
+        child: child!,
+      ),
     );
-    if (picked != null) {
-      setState(() {
-        _dateOfBirth = picked;
-      });
-    }
+    if (picked != null) setState(() => _dateOfBirth = picked);
   }
 
   Future<void> _savePatient() async {
     if (!_formKey.currentState!.validate()) return;
-    
     if (_dateOfBirth == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng chọn ngày sinh')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Vui lòng chọn ngày sinh')));
       return;
     }
 
     setState(() => _isLoading = true);
+    // Capture messenger/navigator before async gaps to avoid use_build_context_synchronously
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
 
     try {
       final data = {
@@ -80,37 +75,26 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
         'dateOfBirth': _dateOfBirth!.toIso8601String(),
         'gender': _gender,
         'patientType': _patientType,
-        if (_addressController.text.isNotEmpty)
-          'address': _addressController.text.trim(),
-        if (_idCardController.text.isNotEmpty)
-          'idCard': _idCardController.text.trim(),
-        if (_emailController.text.isNotEmpty)
-          'email': _emailController.text.trim(),
+        'address': _addressController.text.trim(),
+        'idCard': _idCardController.text.trim(),
+        'email': _emailController.text.trim(),
       };
-
       final response = await _api.post(AppConfig.patientsEndpoint, data);
-
-      if (mounted) {
-        if (response['success']) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
+      if (!mounted) return;
+      if (response['success']) {
+        messenger.showSnackBar(
+          const SnackBar(
               content: Text('Thêm bệnh nhân thành công'),
-              backgroundColor: AppTheme.success,
-            ),
-          );
-          Navigator.pop(context, true);
-        }
+              backgroundColor: Colors.green),
+        );
+  navigator.pop(true);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi: ${e.toString().replaceAll('Exception: ', '')}')),
-        );
-      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lỗi: ${e.toString()}')),
+      );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -119,216 +103,228 @@ class _AddPatientScreenState extends State<AddPatientScreen> {
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Thêm bệnh nhân mới'),
-      ),
-      body: Form(
-        key: _formKey,
+      backgroundColor: bg,
+      body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           children: [
-            // Personal Information Section
-            _buildSectionTitle('Thông tin cá nhân'),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _fullNameController,
-              decoration: const InputDecoration(
-                labelText: 'Họ và tên *',
-                prefixIcon: Icon(Icons.person),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Vui lòng nhập họ tên';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _phoneController,
-              decoration: const InputDecoration(
-                labelText: 'Số điện thoại *',
-                prefixIcon: Icon(Icons.phone),
-              ),
-              keyboardType: TextInputType.phone,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Vui lòng nhập số điện thoại';
-                }
-                if (!RegExp(r'^[0-9]{10}$').hasMatch(value.trim())) {
-                  return 'Số điện thoại không hợp lệ';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Date of Birth
-            InkWell(
-              onTap: _selectDate,
-              child: InputDecorator(
-                decoration: const InputDecoration(
-                  labelText: 'Ngày sinh *',
-                  prefixIcon: Icon(Icons.cake),
-                  suffixIcon: Icon(Icons.calendar_today),
+            // Header gradient giống Dashboard
+            Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [primaryGreen, accentGreen],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                child: Text(
-                  _dateOfBirth != null
-                      ? dateFormat.format(_dateOfBirth!)
-                      : 'Chọn ngày sinh',
-                  style: TextStyle(
-                    color: _dateOfBirth != null ? AppTheme.black : AppTheme.grey,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: primaryGreen.withValues(alpha: 26),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
                   ),
-                ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  InkWell(
+                    onTap: () => Navigator.pop(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(Icons.arrow_back_ios_new_rounded,
+                          color: Colors.white, size: 20),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Thêm bệnh nhân mới',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Nhập thông tin cá nhân và loại bệnh nhân',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 242),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 16),
 
-            // Gender
-            DropdownButtonFormField<String>(
-              value: _gender,
-              decoration: const InputDecoration(
-                labelText: 'Giới tính',
-                prefixIcon: Icon(Icons.wc),
-              ),
-              items: ['Nam', 'Nữ', 'Khác'].map((gender) {
-                return DropdownMenuItem(
-                  value: gender,
-                  child: Text(gender),
-                );
-              }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() => _gender = value);
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _idCardController,
-              decoration: const InputDecoration(
-                labelText: 'CMND/CCCD',
-                prefixIcon: Icon(Icons.credit_card),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _emailController,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.email),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value != null && value.isNotEmpty) {
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return 'Email không hợp lệ';
-                  }
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-
-            TextFormField(
-              controller: _addressController,
-              decoration: const InputDecoration(
-                labelText: 'Địa chỉ',
-                prefixIcon: Icon(Icons.location_on),
-              ),
-              maxLines: 2,
-            ),
             const SizedBox(height: 24),
 
-            // Patient Type Section
-            _buildSectionTitle('Loại bệnh nhân'),
-            const SizedBox(height: 16),
+            // Form Card
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 15),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4))
+                ],
+              ),
+              padding: const EdgeInsets.all(18),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  children: [
+                    _buildInput(_fullNameController, 'Họ và tên *', Icons.person,
+                        validator: (v) =>
+                            v!.isEmpty ? 'Vui lòng nhập họ tên' : null),
+                    _buildInput(_phoneController, 'Số điện thoại *', Icons.phone,
+                        type: TextInputType.phone,
+                        validator: (v) => RegExp(r'^[0-9]{10}$')
+                                .hasMatch(v ?? '')
+                            ? null
+                            : 'Số điện thoại không hợp lệ'),
+                    _buildDatePicker(dateFormat),
+                    _buildDropdown('Giới tính', _gender, ['Nam', 'Nữ', 'Khác'],
+                        (v) => setState(() => _gender = v!)),
+                    _buildInput(_idCardController, 'CMND/CCCD', Icons.credit_card,
+                        type: TextInputType.number),
+                    _buildInput(_emailController, 'Email', Icons.email,
+                        type: TextInputType.emailAddress),
+                    _buildInput(_addressController, 'Địa chỉ', Icons.location_on,
+                        lines: 2),
 
-            Wrap(
-              spacing: 12,
-              children: [
-                _buildPatientTypeChip('Thường', AppTheme.grey),
-                _buildPatientTypeChip('BHYT', AppTheme.secondaryBlue),
-                _buildPatientTypeChip('VIP', AppTheme.accentOrange),
-              ],
-            ),
-            const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+                    _buildSectionTitle('Loại bệnh nhân'),
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 12,
+                      children: [
+                        _buildPatientTypeChip('Thường', Colors.grey),
+                        _buildPatientTypeChip('BHYT', accentGreen),
+                        _buildPatientTypeChip('VIP', Colors.orange),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
 
-            // Save Button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _savePatient,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryGreen,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                          elevation: 3,
                         ),
-                      )
-                    : const Text(
-                        'Lưu thông tin',
-                        style: TextStyle(fontSize: 16),
+                        onPressed: _isLoading ? null : _savePatient,
+                        child: _isLoading
+                            ? const CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2)
+                            : const Text('Lưu thông tin',
+                                style: TextStyle(
+                                    color: Colors.white, fontSize: 16)),
                       ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title) {
-    return Row(
-      children: [
-        Container(
-          width: 4,
-          height: 20,
-          decoration: BoxDecoration(
-            color: AppTheme.primaryGreen,
-            borderRadius: BorderRadius.circular(2),
-          ),
+  Widget _buildInput(TextEditingController controller, String label, IconData icon,
+      {TextInputType? type, int lines = 1, String? Function(String?)? validator}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: TextFormField(
+        controller: controller,
+        keyboardType: type,
+        maxLines: lines,
+        validator: validator,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, color: primaryGreen),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          focusedBorder: OutlineInputBorder(
+              borderSide: const BorderSide(color: primaryGreen, width: 1.5),
+              borderRadius: BorderRadius.circular(12)),
         ),
-        const SizedBox(width: 8),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.black,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
+  Widget _buildDatePicker(DateFormat dateFormat) {
+    return InkWell(
+      onTap: _selectDate,
+      child: InputDecorator(
+        decoration: InputDecoration(
+          labelText: 'Ngày sinh *',
+          prefixIcon: const Icon(Icons.cake, color: primaryGreen),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        child: Text(
+          _dateOfBirth != null
+              ? dateFormat.format(_dateOfBirth!)
+              : 'Chọn ngày sinh',
+          style: TextStyle(
+              color: _dateOfBirth != null ? Colors.black : Colors.grey[600]),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropdown(
+      String label, String currentValue, List<String> items, ValueChanged<String?> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: DropdownButtonFormField<String>(
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: const Icon(Icons.wc, color: primaryGreen),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+        initialValue: currentValue,
+        onChanged: onChanged,
+        items: items
+            .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+            .toList(),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) => Align(
+        alignment: Alignment.centerLeft,
+        child: Text(title,
+            style: const TextStyle(
+                fontSize: 16, fontWeight: FontWeight.w700, color: primaryGreen)),
+      );
+
   Widget _buildPatientTypeChip(String type, Color color) {
     final isSelected = _patientType == type;
-    
     return ChoiceChip(
       label: Text(type),
       selected: isSelected,
-      onSelected: (selected) {
-        setState(() => _patientType = type);
-      },
+      onSelected: (_) => setState(() => _patientType = type),
       selectedColor: color,
-      backgroundColor: color.withValues(alpha: 26),
+  backgroundColor: color.withValues(alpha: 26),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : color,
-        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-      ),
-      side: BorderSide(
-        color: isSelected ? color : color.withValues(alpha: 77),
-        width: isSelected ? 2 : 1,
-      ),
+          color: isSelected ? Colors.white : color,
+          fontWeight: FontWeight.w600),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
     );
   }
 }

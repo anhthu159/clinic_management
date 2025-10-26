@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
+import '../../widgets/app_badge.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -38,23 +39,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isChangingPassword = true);
 
     try {
+      // Capture navigator and messenger before the async gap to avoid
+      // using BuildContext after an await.
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
       final success = await Provider.of<AuthProvider>(context, listen: false)
           .changePassword(
         currentPassword: _currentPasswordController.text,
         newPassword: _newPasswordController.text,
       );
 
-      if (success && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      if (!mounted) return;
+      if (success) {
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Đổi mật khẩu thành công'),
             backgroundColor: AppTheme.success,
           ),
         );
-        Navigator.pop(context);
+        navigator.pop();
       }
     } finally {
-      setState(() => _isChangingPassword = false);
+      if (mounted) setState(() => _isChangingPassword = false);
     }
   }
 
@@ -201,20 +208,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 return;
               }
 
+              // Capture navigator and messenger before async call
+              final messenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(context);
+
               final success = await authProvider.updateProfile(
                 fullName: nameController.text,
                 email: emailController.text,
                 phone: phoneController.text,
               );
 
-              if (success && mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (!mounted) return;
+              if (success) {
+                messenger.showSnackBar(
                   const SnackBar(
                     content: Text('Cập nhật thông tin thành công'),
                     backgroundColor: AppTheme.success,
                   ),
                 );
-                Navigator.pop(context);
+                navigator.pop();
               }
             },
             child: const Text('Lưu'),
@@ -230,10 +242,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Hồ sơ'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: _showEditProfileDialog,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.edit),
+              onPressed: auth.isActive ? _showEditProfileDialog : null,
+              tooltip: auth.isActive ? 'Chỉnh sửa' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: Consumer<AuthProvider>(
@@ -247,10 +262,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 Center(
                   child: Column(
                     children: [
-                      const CircleAvatar(
-                        radius: 50,
-                        backgroundColor: AppTheme.primaryGreen,
-                        child: Icon(Icons.person, size: 60, color: Colors.white),
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                          border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 15)),
+                          boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 3))],
+                        ),
+                        padding: const EdgeInsets.all(6),
+                        child: AppBadge(
+                          radius: 44,
+                          backgroundColor: AppTheme.primaryGreen,
+                          icon: Icons.person,
+                          showRing: false,
+                        ),
                       ),
                       const SizedBox(height: 16),
                       Text(
@@ -320,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   title: 'Đổi mật khẩu',
                   subtitle: 'Thay đổi mật khẩu đăng nhập của bạn',
                   icon: Icons.lock,
-                  onTap: _showChangePasswordDialog,
+                  onTap: authProvider.isActive ? _showChangePasswordDialog : null,
                 ),
               ],
             ),
@@ -340,16 +365,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: AppShadows.cardShadow,
+        boxShadow: AppShadows.cardShadowLight,
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withValues(alpha: 26),
               shape: BoxShape.circle,
+              color: Colors.white,
+              border: Border.all(color: AppTheme.primaryGreen.withValues(alpha: 15)),
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6, offset: const Offset(0, 3))],
             ),
+            padding: const EdgeInsets.all(8),
             child: Icon(icon, color: AppTheme.primaryGreen),
           ),
           const SizedBox(width: 16),
@@ -383,7 +410,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required String title,
     required String subtitle,
     required IconData icon,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return Card(
       shape: RoundedRectangleBorder(

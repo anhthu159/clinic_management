@@ -4,6 +4,11 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/patient.dart';
+import '../../models/service.dart';
+import '../../models/user.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
+import '../../widgets/app_badge.dart';
 
 
 class AddAppointmentScreen extends StatefulWidget {
@@ -22,9 +27,15 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   Patient? _selectedPatient;
   DateTime _appointmentDate = DateTime.now();
   TimeOfDay _appointmentTime = TimeOfDay.now();
-  final _doctorNameController = TextEditingController();
   final _roomNumberController = TextEditingController();
-  final _serviceTypeController = TextEditingController();
+  // previously free-text fields are now dropdown-backed
+  List<Service> _services = [];
+  List<User> _doctors = [];
+  bool _loadingServices = false;
+  bool _loadingDoctors = false;
+
+  Service? _selectedService;
+  User? _selectedDoctor;
   final _reasonController = TextEditingController();
   final _notesController = TextEditingController();
 
@@ -35,13 +46,53 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
   void initState() {
     super.initState();
     _loadPatients();
+    _loadDoctorsAndServices();
+  }
+
+  Future<void> _loadDoctorsAndServices() async {
+    if (!mounted) return;
+    setState(() {
+      _loadingDoctors = true;
+      _loadingServices = true;
+    });
+
+    try {
+      final servicesResponse = await _api.get(AppConfig.servicesEndpoint);
+      if (!mounted) return;
+      if (servicesResponse['success']) {
+        _services = (servicesResponse['data'] as List)
+            .map((json) => Service.fromJson(json))
+            .where((s) => s.isActive)
+            .toList();
+      }
+
+      final usersResponse = await _api.get(AppConfig.usersEndpoint);
+      if (!mounted) return;
+      if (usersResponse['success']) {
+        _doctors = (usersResponse['data'] as List)
+            .map((json) => User.fromJson(json))
+            .where((u) => (u.role.toLowerCase() == 'doctor' || u.role.toLowerCase() == 'bác sĩ' || u.role.toLowerCase() == 'bac si') && u.isActive)
+            .toList();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải dữ liệu bác sĩ/dịch vụ: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _loadingDoctors = false;
+          _loadingServices = false;
+        });
+      }
+    }
   }
 
   @override
   void dispose() {
-    _doctorNameController.dispose();
     _roomNumberController.dispose();
-    _serviceTypeController.dispose();
     _reasonController.dispose();
     _notesController.dispose();
     super.dispose();
@@ -134,12 +185,12 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
         'patientId': _selectedPatient!.id,
         'appointmentDate': _appointmentDate.toIso8601String(),
         'appointmentTime': timeStr,
-        if (_doctorNameController.text.isNotEmpty)
-          'doctorName': _doctorNameController.text.trim(),
+        if (_selectedDoctor != null)
+          'doctorName': _selectedDoctor!.fullName,
         if (_roomNumberController.text.isNotEmpty)
           'roomNumber': _roomNumberController.text.trim(),
-        if (_serviceTypeController.text.isNotEmpty)
-          'serviceType': _serviceTypeController.text.trim(),
+        if (_selectedService != null)
+          'serviceType': _selectedService!.serviceName,
         if (_reasonController.text.isNotEmpty)
           'reason': _reasonController.text.trim(),
         if (_notesController.text.isNotEmpty)
@@ -298,14 +349,23 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             _buildSectionTitle('Chi tiết khám'),
             const SizedBox(height: 16),
 
-            TextFormField(
-              controller: _doctorNameController,
-              decoration: const InputDecoration(
-                labelText: 'Bác sĩ',
-                prefixIcon: Icon(Icons.person),
-                hintText: 'Tên bác sĩ khám',
-              ),
-            ),
+            // Doctor dropdown
+            _loadingDoctors
+                ? const Center(child: CircularProgressIndicator())
+        : DropdownButtonFormField<User>(
+          initialValue: _selectedDoctor,
+                    decoration: const InputDecoration(
+                      labelText: 'Bác sĩ',
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                    items: _doctors.map((doctor) {
+                      return DropdownMenuItem<User>(
+                        value: doctor,
+                        child: Text(doctor.fullName),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => _selectedDoctor = value),
+                  ),
             const SizedBox(height: 16),
 
             TextFormField(
@@ -318,14 +378,23 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             ),
             const SizedBox(height: 16),
 
-            TextFormField(
-              controller: _serviceTypeController,
-              decoration: const InputDecoration(
-                labelText: 'Loại dịch vụ',
-                prefixIcon: Icon(Icons.medical_services),
-                hintText: 'VD: Khám tổng quát, Siêu âm...',
-              ),
-            ),
+            // Service dropdown
+            _loadingServices
+                ? const Center(child: CircularProgressIndicator())
+        : DropdownButtonFormField<Service>(
+          initialValue: _selectedService,
+                    decoration: const InputDecoration(
+                      labelText: 'Loại dịch vụ',
+                      prefixIcon: Icon(Icons.medical_services),
+                    ),
+                    items: _services.map((svc) {
+                      return DropdownMenuItem<Service>(
+                        value: svc,
+                        child: Text(svc.serviceName),
+                      );
+                    }).toList(),
+                    onChanged: (value) => setState(() => _selectedService = value),
+                  ),
             const SizedBox(height: 16),
 
             TextFormField(
@@ -352,25 +421,27 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
             const SizedBox(height: 32),
 
             // Save Button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _saveAppointment,
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
+            Consumer<AuthProvider>(builder: (context, auth, _) {
+              return SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: (!auth.isActive || _isLoading) ? null : _saveAppointment,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          'Đặt lịch hẹn',
+                          style: TextStyle(fontSize: 16),
                         ),
-                      )
-                    : const Text(
-                        'Đặt lịch hẹn',
-                        style: TextStyle(fontSize: 16),
-                      ),
-              ),
-            ),
+                ),
+              );
+            }),
             const SizedBox(height: 16),
           ],
         ),
@@ -445,8 +516,10 @@ class _AddAppointmentScreenState extends State<AddAppointmentScreen> {
                     itemBuilder: (context, index) {
                       final patient = _patients[index];
                       return ListTile(
-                        leading: CircleAvatar(
+                        leading: AppBadge(
+                          radius: 18,
                           backgroundColor: AppTheme.primaryGreen,
+                          showRing: false,
                           child: Text(
                             patient.fullName[0].toUpperCase(),
                             style: const TextStyle(color: Colors.white),

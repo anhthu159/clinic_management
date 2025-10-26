@@ -4,6 +4,8 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/patient.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 
 class PatientDetailScreen extends StatefulWidget {
   final String patientId;
@@ -76,23 +78,33 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
       appBar: AppBar(
         title: const Text('Thông tin bệnh nhân'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () async {
-              final result = await Navigator.pushNamed(
-                context,
-                '/patients/edit',
-                arguments: _patient,
-              );
-              if (result == true) {
-                _loadPatient();
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _confirmDelete,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            final canEdit = auth.canCreatePatient;
+            final canDelete = auth.canDeletePatient;
+            final actions = <Widget>[];
+            if (canEdit) {
+              actions.add(IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () async {
+                  final result = await Navigator.pushNamed(
+                    context,
+                    '/patients/edit',
+                    arguments: _patient,
+                  );
+                  if (result == true) {
+                    _loadPatient();
+                  }
+                },
+              ));
+            }
+            if (canDelete) {
+              actions.add(IconButton(
+                icon: const Icon(Icons.delete),
+                onPressed: _confirmDelete,
+              ));
+            }
+            return Row(mainAxisSize: MainAxisSize.min, children: actions);
+          }),
         ],
       ),
       body: _isLoading
@@ -209,51 +221,66 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         Row(
                           children: [
                             Expanded(
-                              child: _buildActionCard(
-                                icon: Icons.calendar_today,
-                                label: 'Đặt lịch hẹn',
-                                color: AppTheme.secondaryBlue,
-                                onTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/appointments/add',
-                                    arguments: _patient!.id,
-                                  );
-                                },
-                              ),
+                              child: Consumer<AuthProvider>(builder: (context, auth, _) {
+                                final enabled = auth.isActive && auth.canCreateAppointment;
+                                return _buildActionCard(
+                                  icon: Icons.calendar_today,
+                                  label: 'Đặt lịch hẹn',
+                                  color: AppTheme.secondaryBlue,
+                                  onTap: enabled
+                                      ? () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/appointments/add',
+                                            arguments: _patient!.id,
+                                          );
+                                        }
+                                      : null,
+                                );
+                              }),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
-                              child: _buildActionCard(
-                                icon: Icons.assignment,
-                                label: 'Tạo hồ sơ',
-                                color: AppTheme.primaryGreen,
-                                onTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/medical-records/add',
-                                    arguments: _patient!.id,
-                                  );
-                                },
-                              ),
+                              child: Consumer<AuthProvider>(builder: (context, auth, _) {
+                                final enabled = auth.isActive && auth.canCreateMedicalRecord;
+                                return _buildActionCard(
+                                  icon: Icons.assignment,
+                                  label: 'Tạo hồ sơ',
+                                  color: AppTheme.primaryGreen,
+                                  onTap: enabled
+                                      ? () {
+                                          Navigator.pushNamed(
+                                            context,
+                                            '/medical-records/add',
+                                            arguments: _patient!.id,
+                                          );
+                                        }
+                                      : null,
+                                );
+                              }),
                             ),
                           ],
                         ),
                         const SizedBox(height: 12),
                         SizedBox(
                           width: double.infinity,
-                          child: _buildActionCard(
-                            icon: Icons.history,
-                            label: 'Xem lịch sử khám bệnh',
-                            color: AppTheme.accentOrange,
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/medical-records',
-                                arguments: {'patientId': _patient!.id},
-                              );
-                            },
-                          ),
+                          child: Consumer<AuthProvider>(builder: (context, auth, _) {
+                            final enabled = auth.isActive;
+                            return _buildActionCard(
+                              icon: Icons.history,
+                              label: 'Xem lịch sử khám bệnh',
+                              color: AppTheme.accentOrange,
+                              onTap: enabled
+                                  ? () {
+                                      Navigator.pushNamed(
+                                        context,
+                                        '/medical-records',
+                                        arguments: {'patientId': _patient!.id},
+                                      );
+                                    }
+                                  : null,
+                            );
+                          }),
                         ),
 
                         const SizedBox(height: 24),
@@ -387,7 +414,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     required IconData icon,
     required String label,
     required Color color,
-    required VoidCallback onTap,
+    VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,

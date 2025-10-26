@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../config/theme.dart';
+import '../../widgets/app_badge.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +21,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  String _selectedRole = 'receptionist';
+  // Role is not selectable by end-users. New registrations are created as
+  // 'receptionist' and will remain inactive until an admin approves them.
 
   @override
   void dispose() {
@@ -35,7 +37,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
   Future<void> _handleRegister() async {
     if (_formKey.currentState!.validate()) {
       if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(
           const SnackBar(
             content: Text('Mật khẩu xác nhận không khớp'),
             backgroundColor: AppTheme.error,
@@ -45,26 +48,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
       }
 
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      
+      // capture messenger/navigator before awaiting
+      final messenger = ScaffoldMessenger.of(context);
+      final navigator = Navigator.of(context);
+
       final success = await authProvider.register(
         username: _usernameController.text.trim(),
         password: _passwordController.text,
         fullName: _fullNameController.text.trim(),
         email: _emailController.text.trim(),
-        role: _selectedRole,
       );
 
-      if (mounted) {
-        if (success) {
-          Navigator.of(context).pushReplacementNamed('/dashboard');
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(authProvider.errorMessage ?? 'Đăng ký thất bại'),
-              backgroundColor: AppTheme.error,
-            ),
-          );
-        }
+      if (!mounted) return;
+      if (success) {
+        navigator.pushReplacementNamed('/dashboard');
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text(authProvider.errorMessage ?? 'Đăng ký thất bại'),
+            backgroundColor: AppTheme.error,
+          ),
+        );
       }
     }
   }
@@ -94,22 +98,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         // Logo & Title
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryGreen.withValues(alpha: 26),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.person_add,
-                            size: 50,
-                            color: AppTheme.primaryGreen,
-                          ),
+                        AppBadge(
+                          radius: 44,
+                          backgroundColor: Colors.white,
+                          icon: Icons.person_add,
+                          iconColor: AppTheme.primaryGreen,
+                          showRing: true,
                         ),
                         const SizedBox(height: 24),
                         Text(
                           'Đăng ký tài khoản',
-                          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
                             color: AppTheme.primaryGreen,
                             fontWeight: FontWeight.bold,
                           ),
@@ -177,39 +176,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               }
                             }
                             return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Role Selection
-                        DropdownButtonFormField<String>(
-                          value: _selectedRole,
-                          decoration: const InputDecoration(
-                            labelText: 'Vai trò',
-                            prefixIcon: Icon(Icons.work),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'admin',
-                              child: Text('Quản trị viên'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'doctor',
-                              child: Text('Bác sĩ'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'receptionist',
-                              child: Text('Lễ tân'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'accountant',
-                              child: Text('Kế toán'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setState(() => _selectedRole = value);
-                            }
                           },
                         ),
                         const SizedBox(height: 16),

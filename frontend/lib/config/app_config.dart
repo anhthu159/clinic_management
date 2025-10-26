@@ -1,13 +1,30 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+
 class AppConfig {
-  // API Configuration
-  // Cho Android Emulator: 10.0.2.2
-  // Cho iOS Simulator: localhost
-  // Cho thiết bị thật: IP máy tính (vd: 192.168.1.100)
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
-  
-  // Alternative URLs (uncomment khi cần)
-  // static const String baseUrl = 'http://localhost:5000/api'; // iOS
-  // static const String baseUrl = 'http://192.168.1.100:5000/api'; // Real device
+  // Optional override (set at runtime if needed)
+  static String? overrideBaseUrl;
+
+  // API Configuration (dynamic based on platform)
+  // - Web: use relative '/api' to work with proxies
+  // - Android emulator: 10.0.2.2
+  // - iOS simulator: localhost
+  // - Other (desktop / real device): replace with your machine IP or set overrideBaseUrl
+  static String get baseUrl {
+    if (overrideBaseUrl != null && overrideBaseUrl!.isNotEmpty) {
+      return overrideBaseUrl!;
+    }
+    if (kIsWeb) {
+      return '/api'; // relative for web
+    } else if (Platform.isAndroid) {
+      return 'http://10.0.2.2:5000/api';
+    } else if (Platform.isIOS) {
+      return 'http://localhost:5000/api';
+    } else {
+      // Desktop or unknown: developer should set overrideBaseUrl to local IP when testing on device
+      return 'http://localhost:5000/api';
+    }
+  }
   
   // Endpoints
   static const String loginEndpoint = '/auth/login';

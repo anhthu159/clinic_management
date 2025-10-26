@@ -3,6 +3,9 @@ import '../../services/api_service.dart';
 import '../../config/theme.dart';
 import '../../config/app_config.dart';
 import '../../models/medicine.dart';
+import 'package:provider/provider.dart';
+import '../widgets/app_badge.dart';
+import '../providers/auth_provider.dart';
 
 class MedicineListScreen extends StatefulWidget {
   const MedicineListScreen({super.key});
@@ -47,9 +50,11 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
-        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Lỗi tải dữ liệu: $e')),
+          );
+        });
       }
     }
   }
@@ -62,117 +67,129 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       }).toList();
     });
   }
-
   Future<void> _showAddDialog() async {
     final nameController = TextEditingController();
     final unitController = TextEditingController();
     final priceController = TextEditingController();
     final stockController = TextEditingController();
     final descriptionController = TextEditingController();
-
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Thêm thuốc mới'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên thuốc *',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: unitController,
-                decoration: const InputDecoration(
-                  labelText: 'Đơn vị (viên, hộp, chai...) *',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Giá *',
-                  border: OutlineInputBorder(),
-                  suffixText: 'đ',
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: stockController,
-                decoration: const InputDecoration(
-                  labelText: 'Số lượng tồn kho',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty ||
-                  unitController.text.isEmpty ||
-                  priceController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Vui lòng điền đầy đủ thông tin bắt buộc')),
-                );
-                return;
-              }
-
-              try {
-                final data = {
-                  'medicineName': nameController.text.trim(),
-                  'unit': unitController.text.trim(),
-                  'price': double.parse(priceController.text),
-                  'stockQuantity': int.tryParse(stockController.text) ?? 0,
-                  if (descriptionController.text.isNotEmpty)
-                    'description': descriptionController.text.trim(),
-                };
-
-                await _api.post(AppConfig.medicinesEndpoint, data);
-                Navigator.pop(context);
-                _loadMedicines();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Thêm thuốc thành công'),
-                      backgroundColor: AppTheme.success,
+      builder: (context) {
+        final dialogWidth = MediaQuery.of(context).size.width * 0.6;
+        return Dialog(
+          insetPadding: EdgeInsets.symmetric(horizontal: MediaQuery.of(context).size.width * 0.2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: dialogWidth),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Thêm thuốc mới', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên thuốc *',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Thêm'),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: unitController,
+                      decoration: const InputDecoration(
+                        labelText: 'Đơn vị (viên, hộp, chai...) *',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: priceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Giá *',
+                        border: OutlineInputBorder(),
+                        suffixText: 'đ',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: stockController,
+                      decoration: const InputDecoration(
+                        labelText: 'Số lượng tồn kho',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mô tả',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            if (nameController.text.isEmpty ||
+                                unitController.text.isEmpty ||
+                                priceController.text.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Vui lòng điền đầy đủ thông tin bắt buộc')),
+                              );
+                              return;
+                            }
+
+                            final messenger = ScaffoldMessenger.of(context);
+                            final navigator = Navigator.of(context);
+
+                            try {
+                              final data = {
+                                'medicineName': nameController.text.trim(),
+                                'unit': unitController.text.trim(),
+                                'price': double.parse(priceController.text),
+                                'stockQuantity': int.tryParse(stockController.text) ?? 0,
+                                if (descriptionController.text.isNotEmpty)
+                                  'description': descriptionController.text.trim(),
+                              };
+
+                              await _api.post(AppConfig.medicinesEndpoint, data);
+                              navigator.pop();
+                              _loadMedicines();
+                              if (!mounted) return;
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Thêm thuốc thành công'),
+                                  backgroundColor: AppTheme.success,
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              messenger.showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                            }
+                          },
+                          child: const Text('Thêm'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -185,97 +202,106 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
 
     await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Chỉnh sửa thuốc'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên thuốc *',
-                  border: OutlineInputBorder(),
+      builder: (context) => Center(
+        child: SingleChildScrollView(
+      child: SizedBox(
+        width: MediaQuery.of(context).size.width * 0.6,
+        child: AlertDialog(
+              title: const Text('Chỉnh sửa thuốc'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Tên thuốc *',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: unitController,
+                      decoration: const InputDecoration(
+                        labelText: 'Đơn vị *',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: priceController,
+                      decoration: const InputDecoration(
+                        labelText: 'Giá *',
+                        border: OutlineInputBorder(),
+                        suffixText: 'đ',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: stockController,
+                      decoration: const InputDecoration(
+                        labelText: 'Số lượng tồn kho',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descriptionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Mô tả',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: unitController,
-                decoration: const InputDecoration(
-                  labelText: 'Đơn vị *',
-                  border: OutlineInputBorder(),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Hủy'),
                 ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(
-                  labelText: 'Giá *',
-                  border: OutlineInputBorder(),
-                  suffixText: 'đ',
+                ElevatedButton(
+                  onPressed: () async {
+                    // Capture messenger and navigator before async gap
+                    final messenger = ScaffoldMessenger.of(context);
+                    final navigator = Navigator.of(context);
+
+                    try {
+                      final data = {
+                        'medicineName': nameController.text.trim(),
+                        'unit': unitController.text.trim(),
+                        'price': double.parse(priceController.text),
+                        'stockQuantity': int.tryParse(stockController.text) ?? 0,
+                        if (descriptionController.text.isNotEmpty)
+                          'description': descriptionController.text.trim(),
+                      };
+
+                      await _api.put('${AppConfig.medicinesEndpoint}/${medicine.id}', data);
+                      navigator.pop();
+                      _loadMedicines();
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        const SnackBar(
+                          content: Text('Cập nhật thành công'),
+                          backgroundColor: AppTheme.success,
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(content: Text('Lỗi: $e')),
+                      );
+                    }
+                  },
+                  child: const Text('Lưu'),
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: stockController,
-                decoration: const InputDecoration(
-                  labelText: 'Số lượng tồn kho',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  border: OutlineInputBorder(),
-                ),
-                maxLines: 3,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Hủy'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final data = {
-                  'medicineName': nameController.text.trim(),
-                  'unit': unitController.text.trim(),
-                  'price': double.parse(priceController.text),
-                  'stockQuantity': int.tryParse(stockController.text) ?? 0,
-                  if (descriptionController.text.isNotEmpty)
-                    'description': descriptionController.text.trim(),
-                };
-
-                await _api.put('${AppConfig.medicinesEndpoint}/${medicine.id}', data);
-                Navigator.pop(context);
-                _loadMedicines();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Cập nhật thành công'),
-                      backgroundColor: AppTheme.success,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Lỗi: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Lưu'),
-          ),
-        ],
       ),
     );
   }
@@ -307,10 +333,13 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
       appBar: AppBar(
         title: const Text('Quản lý thuốc'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadMedicines,
-          ),
+          Consumer<AuthProvider>(builder: (context, auth, _) {
+            return IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: auth.isActive ? _loadMedicines : null,
+              tooltip: auth.isActive ? 'Làm mới' : 'Tài khoản chưa kích hoạt',
+            );
+          }),
         ],
       ),
       body: Column(
@@ -370,12 +399,15 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showAddDialog,
-        icon: const Icon(Icons.add),
-        label: const Text('Thêm thuốc'),
-        backgroundColor: AppTheme.secondaryBlue,
-      ),
+      floatingActionButton: Consumer<AuthProvider>(builder: (context, auth, _) {
+        if (!auth.canManageMedicines) return const SizedBox.shrink();
+        return FloatingActionButton.extended(
+          onPressed: _showAddDialog,
+          icon: const Icon(Icons.add),
+          label: const Text('Thêm thuốc'),
+          backgroundColor: AppTheme.secondaryBlue,
+        );
+      }),
     );
   }
 
@@ -389,17 +421,12 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
           children: [
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.secondaryBlue.withValues(alpha: 26),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.medication,
-                    color: AppTheme.secondaryBlue,
-                    size: 24,
-                  ),
+                // Circular colored avatar to match dashboard quick-action style
+                AppBadge(
+                  radius: 22,
+                  backgroundColor: AppTheme.secondaryBlue,
+                  icon: Icons.medication,
+                  showRing: false,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -424,7 +451,8 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
                     ],
                   ),
                 ),
-                _buildStockChip(medicine),
+                // Availability pill (filled capsule with check) + stock chip
+                // stock/status chip removed by user request
               ],
             ),
             const SizedBox(height: 12),
@@ -486,77 +514,38 @@ class _MedicineListScreenState extends State<MedicineListScreen> {
               ),
             ],
             const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton.icon(
-                  onPressed: () => _showEditDialog(medicine),
-                  icon: const Icon(Icons.edit, size: 18),
-                  label: const Text('Sửa'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.secondaryBlue,
+            Consumer<AuthProvider>(builder: (context, auth, _) {
+              if (!auth.canManageMedicines) return const SizedBox.shrink();
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _showEditDialog(medicine),
+                    icon: const Icon(Icons.edit, size: 18),
+                    label: const Text('Sửa'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.secondaryBlue,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: () => _confirmDelete(medicine),
-                  icon: const Icon(Icons.delete, size: 18),
-                  label: const Text('Xóa'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.error,
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: () => _confirmDelete(medicine),
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: const Text('Xóa'),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppTheme.error,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              );
+            }),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildStockChip(Medicine medicine) {
-    Color color;
-    String label;
-    IconData icon;
-
-    if (medicine.isOutOfStock) {
-      color = AppTheme.error;
-      label = 'Hết hàng';
-      icon = Icons.error;
-    } else if (medicine.isLowStock) {
-      color = AppTheme.warning;
-      label = 'Sắp hết';
-      icon = Icons.warning;
-    } else {
-      color = AppTheme.success;
-      label = 'Còn hàng';
-      icon = Icons.check_circle;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 26),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 77)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Stock/status chip removed per user request.
 
   Widget _buildEmptyState() {
     return Center(

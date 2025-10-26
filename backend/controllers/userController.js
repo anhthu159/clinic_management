@@ -1,8 +1,17 @@
 const User = require('../models/user');
+const { validationResult } = require('express-validator');
 
 // Tạo user mới (chỉ admin)
 exports.createUser = async (req, res) => {
   try {
+    // Check validation results from express-validator
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
+
+    // Ensure password is provided (route-level validation should catch this)
+    // Create user with provided fields (admin-only route)
     const user = new User(req.body);
     await user.save();
     
@@ -50,6 +59,11 @@ exports.updateUser = async (req, res) => {
   try {
     // Không cho phép cập nhật password qua API này
     delete req.body.password;
+    // Check validation results from express-validator
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ success: false, errors: errors.array() });
+    }
     
     // Validate dữ liệu đầu vào
     if (req.body.fullName === '') {
